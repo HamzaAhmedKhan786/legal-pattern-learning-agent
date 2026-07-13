@@ -1,5 +1,75 @@
 # Legal Document Pattern Learning System
 
+## Solution
+
+The implemented proof-of-concept is in:
+
+```text
+legal_pattern_system/
+```
+
+The written answers to the three additional challenge questions are in:
+
+```text
+legal_pattern_system/docs/additional_questions.md
+```
+
+Main solution documentation:
+
+```text
+legal_pattern_system/README.md
+legal_pattern_system/RESULTS.md
+legal_pattern_system/docs/architecture.md
+legal_pattern_system/docs/design_decisions.md
+legal_pattern_system/docs/qa_score_comparison.md
+```
+
+The runnable scripts are in:
+
+```text
+legal_pattern_system/scripts/
+```
+
+Run from the solution folder:
+
+```bash
+cd legal_pattern_system
+```
+
+Run the full learning/generation/QA pipeline:
+
+```bash
+python scripts\run_pipeline.py --doc-type dismissal_protection_suits
+python scripts\run_pipeline.py --doc-type claims_for_damages
+```
+
+Generate a draft from a saved template and example case-data JSON:
+
+```bash
+python scripts\generate_sample.py --template outputs\templates\dismissal_protection_suits_template.json --case-data examples\dismissal_case_data.json --output outputs\generated_documents\example_from_json.md
+```
+
+Evaluate an existing generated draft:
+
+```bash
+python scripts\evaluate_outputs.py --template outputs\templates\dismissal_protection_suits_template.json --draft outputs\generated_documents\example_from_json.md --output outputs\qa_reports\example_from_json_qa.json
+```
+
+Run checks:
+
+```bash
+python -m unittest discover -s tests
+python -m compileall src scripts tests
+```
+
+Outputs are written to:
+
+```text
+legal_pattern_system/outputs/templates/
+legal_pattern_system/outputs/generated_documents/
+legal_pattern_system/outputs/qa_reports/
+```
+
 ## Overview
 
 Welcome to our technical challenge for the AI Engineer position. This challenge is designed to evaluate your ability to design sophisticated AI systems, think through complex technical problems, and demonstrate deep understanding of modern AI approaches.
