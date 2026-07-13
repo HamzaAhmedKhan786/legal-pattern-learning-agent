@@ -1,0 +1,290 @@
+{
+  "document_type": "claims_for_damages",
+  "source_count": 3,
+  "title": "CLAIM FOR DAMAGES",
+  "metadata_fields": [
+    {
+      "label": "Case No.",
+      "values": [
+        "CFD-2024-001",
+        "CFD-2024-002",
+        "CFD-2024-003"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    },
+    {
+      "label": "Court",
+      "values": [
+        "Commercial Court Munich",
+        "District Court Berlin",
+        "Regional Court Hamburg"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    },
+    {
+      "label": "Date Filed",
+      "values": [
+        "April 12, 2024",
+        "February 28, 2024",
+        "March 8, 2024"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    }
+  ],
+  "party_fields": {
+    "plaintiff": [
+      {
+        "label": "Address",
+        "values": [
+          "Friedrichstraße 200, 10117 Berlin, Germany",
+          "Maximilianstraße 89, 80539 Munich, Germany",
+          "Speicherstadt 15, 20457 Hamburg, Germany"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Legal Representative",
+        "values": [
+          "CEO Dr. Martin Weber",
+          "Managing Director Captain Lars Andersen",
+          "Managing Director Stefan Huber"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Name",
+        "values": [
+          "Alpine Construction GmbH",
+          "Nordic Shipping Solutions GmbH",
+          "TechStart GmbH"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Registration",
+        "values": [
+          "HRB 12345 B, Amtsgericht Berlin-Charlottenburg",
+          "HRB 45678 H, Amtsgericht Hamburg",
+          "HRB 98765 M, Amtsgericht Munich"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      }
+    ],
+    "defendant": [
+      {
+        "label": "Address",
+        "values": [
+          "Hafenstraße 234, 20359 Hamburg, Germany",
+          "Industriestraße 45, 80805 Munich, Germany",
+          "Potsdamer Platz 1, 10785 Berlin, Germany"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Legal Representative",
+        "values": [
+          "Board of Directors",
+          "Executive Board"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Name",
+        "values": [
+          "DataSolutions AG",
+          "Maritime Equipment Systems AG",
+          "Premium Materials AG"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Registration",
+        "values": [
+          "HRB 54321 M, Amtsgericht Munich",
+          "HRB 67890 B, Amtsgericht Berlin-Charlottenburg",
+          "HRB 87654 H, Amtsgericht Hamburg"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      }
+    ]
+  },
+  "sections": [
+    {
+      "heading": "PLAINTIFF",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "**Name:** Nordic Shipping Solutions GmbH  \n**Address:** Speicherstadt 15, 20457 Hamburg, Germany  \n**Legal Representative:** Managing Director Captain Lars Andersen  \n**Registration:** HRB 45678 H, Amtsgericht Hamburg"
+    },
+    {
+      "heading": "DEFENDANT",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [
+        "**Legal Representative:** Board of Directors"
+      ],
+      "representative_content": "**Name:** DataSolutions AG  \n**Address:** Potsdamer Platz 1, 10785 Berlin, Germany  \n**Legal Representative:** Board of Directors  \n**Registration:** HRB 67890 B, Amtsgericht Berlin-Charlottenburg  \n\n---"
+    },
+    {
+      "heading": "STATEMENT OF CLAIM",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": ""
+    },
+    {
+      "heading": "I. FACTUAL BACKGROUND",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "1. **Service Agreement**\n   - On October 1, 2023, parties entered into a Navigation System Upgrade Agreement.\n   - Contract value: €180,000 for installation of advanced GPS and radar systems.\n   - Critical completion deadline: December 15, 2023, before winter shipping season.\n   - Agreement included performance guarantees and system reliability standards.\n\n2. **Breach of Performance**\n   - Installation completed January 20, 2024, 36 days after contractual deadline.\n   - Navigation systems experienced multiple failures during sea trials.\n   - Radar integration software contained critical bugs affecting collision avoidance.\n\n3. **Operational Impact**\n   - Vessel unable to operate during peak winter shipping contracts.\n   - Lost charter agreements worth €320,000 due to delayed system certification.\n   - Emergency rental of alternative vessel cost €85,000.\n   - Reputation damage with long-term shipping clients."
+    },
+    {
+      "heading": "II. LEGAL GROUNDS",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "1. **Fundamental Breach of Contract (§ 280 BGB)**\n   - Defendant materially breached the Navigation System Upgrade Agreement.\n   - Late delivery and defective systems constitute substantial non-performance.\n   - Performance failures endangered vessel safety and regulatory compliance.\n\n2. **Delay in Critical Performance (§ 286 BGB)**\n   - Time was of the essence due to seasonal shipping requirements.\n   - Defendant was in default regarding contractually specified completion date.\n   - Delay caused substantial and foreseeable business losses.\n\n3. **Warranty and Safety Violations (§ 634 BGB)**\n   - Navigation systems failed to meet maritime safety standards.\n   - Software defects created safety hazards in violation of contract warranties.\n   - Defendant failed to remedy defects within reasonable cure period."
+    },
+    {
+      "heading": "III. DAMAGES CLAIMED",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "1. **Direct Contract Damages:**\n   - Client penalty payments: €150,000\n   - Cost of replacement materials: €85,000\n   - Additional labor costs due to delay: €65,000\n   - **Subtotal: €300,000**\n\n2. **Consequential Business Damages:**\n   - Lost profits on delayed project completion: €75,000\n   - Additional equipment rental costs: €25,000\n   - Project management overhead: €20,000\n   - **Subtotal: €120,000**\n\n3. **Mitigation and Legal Costs:**\n   - Expedited shipping and handling: €15,000\n   - Legal and expert fees: €18,000\n   - **Subtotal: €33,000**\n\n**TOTAL DAMAGES CLAIMED: €453,000**"
+    },
+    {
+      "heading": "IV. RELIEF SOUGHT",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [
+        "The Plaintiff respectfully requests that this Honorable Court:"
+      ],
+      "representative_content": "The Plaintiff respectfully requests that this Honorable Court:\n\n1. **Monetary Damages:**\n   - Award compensatory damages of €695,000 plus statutory interest.\n   - Award pre-judgment interest from December 15, 2023.\n\n2. **Equitable Relief:**\n   - Order Defendant to complete proper system installation and certification.\n   - Injunctive relief preventing similar defective installations.\n\n3. **Additional Relief:**\n   - Award attorney's fees and expert witness costs.\n   - Grant such other relief as the Court deems appropriate.\n\n---"
+    },
+    {
+      "heading": "SUPPORTING EVIDENCE",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": ""
+    },
+    {
+      "heading": "DOCUMENTS ATTACHED",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "- A. Navigation System Upgrade Agreement dated October 1, 2023\n- B. Installation Timeline and Delay Documentation\n- C. Lost Charter Contracts and Client Communications\n- D. Maritime Safety Inspection Reports\n- E. Emergency Vessel Rental Agreements and Invoices\n- F. Expert Analysis of System Defects and Safety Violations"
+    },
+    {
+      "heading": "WITNESS LIST",
+      "level": 3,
+      "occurrence_rate": 0.67,
+      "required": false,
+      "variants": [],
+      "representative_content": "1. **Dr. Anna Schneider** - CTO, TechStart GmbH\n2. **Michael Braun** - Project Manager, can testify to timeline and requirements\n3. **Prof. Dr. Klaus Weber** - Software Engineering Expert\n\n---"
+    },
+    {
+      "heading": "CONCLUSION",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "Maritime Equipment Systems AG's breach of the navigation system contract has caused substantial damages to Nordic Shipping Solutions GmbH through delayed delivery and defective performance. The breach directly resulted in lost business opportunities during the critical winter shipping season and created ongoing safety and operational concerns. Full compensation is warranted for these foreseeable and quantifiable damages.\n\nRespectfully submitted,\n\n**Attorney for Plaintiff**  \nRechtsanwältin Dr. Ingrid Petersen  \nPetersen Maritime Law  \nJungfernstieg 56, 20354 Hamburg  \nTel: +49 40 678 9012  \nEmail: i.petersen@maritime-law.de  \n\n---\n\n**Date:** February 28, 2024  \n**Signature:** [Dr. Ingrid Petersen]"
+    },
+    {
+      "heading": "EXPERT WITNESSES",
+      "level": 3,
+      "occurrence_rate": 0.33,
+      "required": false,
+      "variants": [],
+      "representative_content": "1. **Captain Dr. Erik Johansson** - Maritime Navigation Systems Expert\n2. **Ing. Petra Nordström** - Marine Electronics Specialist\n3. **Hans Mueller** - Shipping Industry Analyst\n\n---"
+    }
+  ],
+  "legal_citations": [
+    "§ 280 BGB",
+    "§ 286 BGB",
+    "§ 634 BGB",
+    "§ 434 BGB"
+  ],
+  "placeholders": [
+    "case_no",
+    "court",
+    "date_filed",
+    "defendant_address",
+    "defendant_legal_representative",
+    "defendant_name",
+    "defendant_registration",
+    "plaintiff_address",
+    "plaintiff_legal_representative",
+    "plaintiff_name",
+    "plaintiff_registration"
+  ],
+  "required_sections": [
+    "PLAINTIFF",
+    "DEFENDANT",
+    "STATEMENT OF CLAIM",
+    "I. FACTUAL BACKGROUND",
+    "II. LEGAL GROUNDS",
+    "III. DAMAGES CLAIMED",
+    "IV. RELIEF SOUGHT",
+    "SUPPORTING EVIDENCE",
+    "DOCUMENTS ATTACHED",
+    "CONCLUSION"
+  ],
+  "optional_sections": [
+    "WITNESS LIST",
+    "EXPERT WITNESSES"
+  ],
+  "variable_fields": [
+    "case_no",
+    "court",
+    "date_filed",
+    "defendant_address",
+    "defendant_legal_representative",
+    "defendant_name",
+    "defendant_registration",
+    "plaintiff_address",
+    "plaintiff_legal_representative",
+    "plaintiff_name",
+    "plaintiff_registration"
+  ],
+  "locked_legal_citations": [
+    "§ 280 BGB",
+    "§ 286 BGB",
+    "§ 634 BGB",
+    "§ 434 BGB"
+  ],
+  "confidence": 0.96,
+  "source_examples": [
+    "cfd_001.md",
+    "cfd_002.md",
+    "cfd_003.md"
+  ],
+  "notes": [
+    "Prototype learns structure from Markdown samples; production ingestion can swap parser adapters.",
+    "Fields observed with multiple values are treated as variable placeholders.",
+    "Critical legal citations are surfaced for lawyer review before template approval.",
+    "Generation uses canonical section guidance instead of copying whole source sections."
+  ]
+}

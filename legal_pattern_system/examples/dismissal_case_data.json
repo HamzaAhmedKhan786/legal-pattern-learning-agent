@@ -1,0 +1,15 @@
+{
+  "case_no": "DPS-2024-999",
+  "court": "Labor Court Berlin",
+  "date_filed": "June 20, 2024",
+  "plaintiff_name": "Example Employee",
+  "plaintiff_address": "Example Street 1, 10115 Berlin, Germany",
+  "plaintiff_employee_id": "EMP-2024-0999",
+  "plaintiff_position": "Senior Product Manager",
+  "plaintiff_department": "Product",
+  "plaintiff_hire_date": "May 1, 2020",
+  "defendant_company": "Example Employer GmbH",
+  "defendant_address": "Employer Avenue 10, 10117 Berlin, Germany",
+  "defendant_legal_representative": "Dr. Example Counsel",
+  "defendant_hr_contact": "Example HR Director"
+}

@@ -1,0 +1,14 @@
+{
+  "case_no": "CFD-2024-999",
+  "court": "District Court Berlin",
+  "date_filed": "June 20, 2024",
+  "plaintiff_name": "Example Claimant GmbH",
+  "plaintiff_address": "Example Street 2, 10115 Berlin, Germany",
+  "plaintiff_legal_representative": "CEO Example Representative",
+  "plaintiff_registration": "HRB 99999 B, Amtsgericht Berlin-Charlottenburg",
+  "defendant_name": "Example Defendant AG",
+  "defendant_address": "Defendant Avenue 20, 10117 Berlin, Germany",
+  "defendant_legal_representative": "Board of Directors",
+  "defendant_registration": "HRB 88888 B, Amtsgericht Berlin-Charlottenburg",
+  "total_damages": "€325,000"
+}

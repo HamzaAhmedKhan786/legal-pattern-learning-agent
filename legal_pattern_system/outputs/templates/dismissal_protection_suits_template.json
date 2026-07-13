@@ -1,0 +1,339 @@
+{
+  "document_type": "dismissal_protection_suits",
+  "source_count": 5,
+  "title": "DISMISSAL PROTECTION SUIT",
+  "metadata_fields": [
+    {
+      "label": "Case No.",
+      "values": [
+        "DPS-2024-001",
+        "DPS-2024-002",
+        "DPS-2024-003",
+        "DPS-2024-004",
+        "DPS-2024-005"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    },
+    {
+      "label": "Court",
+      "values": [
+        "Labor Court Cologne",
+        "Labor Court Frankfurt",
+        "Labor Court Hamburg",
+        "Labor Court Munich",
+        "Labor Court Stuttgart"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    },
+    {
+      "label": "Date Filed",
+      "values": [
+        "April 2, 2024",
+        "February 20, 2024",
+        "January 18, 2024",
+        "March 15, 2024",
+        "May 3, 2024"
+      ],
+      "stability": "variable",
+      "confidence": 1.0
+    }
+  ],
+  "party_fields": {
+    "plaintiff": [
+      {
+        "label": "Address",
+        "values": [
+          "Elbchaussee 156, 22763 Hamburg, Germany",
+          "Goethestraße 78, 60313 Frankfurt am Main, Germany",
+          "Hohenzollernring 89, 50672 Cologne, Germany",
+          "Königstraße 67, 70173 Stuttgart, Germany",
+          "Maximilianstraße 45, 80538 Munich, Germany"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Department",
+        "values": [
+          "Engineering",
+          "Logistics & Operations",
+          "Manufacturing Operations",
+          "Marketing & Communications",
+          "R&D Division"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Employee ID",
+        "values": [
+          "EMP-2017-0934",
+          "EMP-2018-0623",
+          "EMP-2019-0847",
+          "EMP-2020-1205",
+          "EMP-2021-1456"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Hire Date",
+        "values": [
+          "August 10, 2018",
+          "June 1, 2019",
+          "March 1, 2017",
+          "November 8, 2021",
+          "September 15, 2020"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Name",
+        "values": [
+          "Carmen Rodriguez",
+          "Dr. Andreas Müller",
+          "Jennifer Walsh",
+          "Maria Schmidt",
+          "Robert Zimmermann"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Position",
+        "values": [
+          "Marketing Manager",
+          "Operations Supervisor",
+          "Quality Assurance Manager",
+          "Research Director",
+          "Senior Software Developer"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      }
+    ],
+    "defendant": [
+      {
+        "label": "Address",
+        "values": [
+          "Deutz-Mülheimer Straße 183, 51063 Cologne, Germany",
+          "Hafenstraße 88, 20359 Hamburg, Germany",
+          "Leopoldstraße 123, 80802 Munich, Germany",
+          "Mainzer Landstraße 200, 60327 Frankfurt am Main, Germany",
+          "Porscheplatz 1, 70435 Stuttgart, Germany"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Company",
+        "values": [
+          "AutoParts Manufacturing GmbH",
+          "BioTech Innovations AG",
+          "GlobalTrade AG",
+          "Maritime Logistics GmbH",
+          "TechCorp GmbH"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "HR Contact",
+        "values": [
+          "Ingrid Schneider, HR Business Partner",
+          "Jürgen Krause, Personnel Manager",
+          "Michael Braun, Head of Human Resources",
+          "Peter Hoffmann, VP Human Resources",
+          "Sarah Weber, HR Director"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      },
+      {
+        "label": "Legal Representative",
+        "values": [
+          "Dr. Claudia Richter, General Counsel",
+          "Dr. Hans Mueller, Attorney",
+          "Dr. Petra Nordmann, Attorney",
+          "Dr. Wolfgang Benz, Corporate Counsel",
+          "Prof. Dr. Andrea Schulz, Attorney"
+        ],
+        "stability": "variable",
+        "confidence": 1.0
+      }
+    ]
+  },
+  "sections": [
+    {
+      "heading": "PLAINTIFF",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "**Name:** Robert Zimmermann  \n**Address:** Goethestraße 78, 60313 Frankfurt am Main, Germany  \n**Employee ID:** EMP-2020-1205  \n**Position:** Marketing Manager  \n**Department:** Marketing & Communications  \n**Hire Date:** September 15, 2020"
+    },
+    {
+      "heading": "DEFENDANT",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "**Company:** BioTech Innovations AG  \n**Address:** Deutz-Mülheimer Straße 183, 51063 Cologne, Germany  \n**Legal Representative:** Dr. Claudia Richter, General Counsel  \n**HR Contact:** Peter Hoffmann, VP Human Resources  \n\n---"
+    },
+    {
+      "heading": "STATEMENT OF CLAIM",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": ""
+    },
+    {
+      "heading": "I. FACTUAL BACKGROUND",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [
+        "3. **Circumstances Leading to Dismissal**"
+      ],
+      "representative_content": "1. **Employment Relationship**\n   - The Plaintiff was employed by Defendant as Marketing Manager from September 15, 2020, until the contested dismissal on March 31, 2024.\n   - The employment was governed by a comprehensive employment agreement dated September 1, 2020.\n   - Plaintiff's monthly gross salary was €5,800, plus performance bonuses.\n\n2. **Dismissal Notice**\n   - On March 1, 2024, Defendant delivered a written dismissal notice effective March 31, 2024.\n   - The stated reason was \"elimination of position due to digital transformation initiatives.\"\n   - The dismissal came without prior warning or performance improvement discussions.\n\n3. **Circumstances Leading to Dismissal**\n   - Defendant claims the marketing department is being restructured to focus on digital channels.\n   - However, Plaintiff had successfully led multiple digital marketing campaigns with measurable ROI improvements.\n   - Defendant hired external consultants for digital marketing projects while dismissing internal expertise."
+    },
+    {
+      "heading": "II. LEGAL GROUNDS",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [
+        "1. **Violation of Dismissal Protection Act (KSchG)**",
+        "- Dismissal lacks urgent operational necessity under § 1 KSchG.",
+        "- Violation of General Equal Treatment Act (AGG)."
+      ],
+      "representative_content": "1. **Violation of Dismissal Protection Act (KSchG)**\n   - Dismissal lacks urgent operational necessity under § 1 KSchG.\n   - Improper social selection ignoring Plaintiff's performance and family status.\n   - Insufficient works council involvement in restructuring decision.\n\n2. **Procedural Deficiencies**\n   - Notice period of 30 days inadequate (collective agreement requires 2 months).\n   - No good faith consultation about position modification or retraining.\n   - Failure to consider Plaintiff's specialized expertise in automotive quality standards.\n\n3. **Discriminatory Elements**\n   - Potential gender discrimination in selection of quality staff for dismissal.\n   - Disproportionate impact on female employees in technical roles.\n   - Violation of General Equal Treatment Act (AGG)."
+    },
+    {
+      "heading": "III. RELIEF SOUGHT",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [
+        "The Plaintiff respectfully requests that this Honorable Court:",
+        "- Award attorney's fees and court costs."
+      ],
+      "representative_content": "1. **Primary Relief:**\n   - Declaration that dismissal is null and void.\n   - Reinstatement to Research Director position with full authority.\n   - Payment of salary and benefits from January 1, 2024, until reinstatement.\n\n2. **Alternative Relief:**\n   - Severance payment of €285,000 (3 years' salary) if reinstatement impossible.\n   - Acceleration of stock option vesting per original schedule.\n   - Continuation of research project funding and patent rights.\n\n3. **Additional Relief:**\n   - Compensation for reputational damage in research community.\n   - Legal fees and expert witness costs.\n   - Injunctive relief preventing interference with ongoing research collaborations.\n\n---"
+    },
+    {
+      "heading": "SUPPORTING EVIDENCE",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": ""
+    },
+    {
+      "heading": "DOCUMENTS ATTACHED",
+      "level": 3,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "- A. Executive Employment Contract dated February 15, 2017\n- B. Dismissal Notice and Company Restructuring Announcement\n- C. Research Achievement Reports and Patent Filings\n- D. Stock Option Agreements and Vesting Schedules\n- E. Company Financial Reports showing R&D Investment Increase\n- F. Email Communications regarding Research Strategy"
+    },
+    {
+      "heading": "WITNESS LIST",
+      "level": 3,
+      "occurrence_rate": 0.8,
+      "required": false,
+      "variants": [],
+      "representative_content": "1. **Dipl.-Ing. Michael Weber** - Production Manager, familiar with quality improvements\n2. **Petra Hoffmann** - Works Council Representative\n3. **Dr. Andrea Schulz** - Quality Consultant, can testify to industry standards\n\n---"
+    },
+    {
+      "heading": "CONCLUSION",
+      "level": 2,
+      "occurrence_rate": 1.0,
+      "required": true,
+      "variants": [],
+      "representative_content": "The dismissal of Dr. Andreas Müller represents a clear violation of employment protection law and contractual obligations. The timing and circumstances strongly suggest pretextual reasons masking age discrimination. Given Plaintiff's substantial contributions and the company's continued R&D expansion, reinstatement and full compensation are warranted.\n\nRespectfully submitted,\n\n**Attorney for Plaintiff**  \nRechtsanwalt Dr. Frank Zimmermann  \nZimmermann Executive Law  \nBreite Straße 45, 50667 Cologne  \nTel: +49 221 456 7890  \nEmail: f.zimmermann@executive-law.de  \n\n---\n\n**Date:** January 18, 2024  \n**Signature:** [Dr. Frank Zimmermann]"
+    },
+    {
+      "heading": "EXPERT WITNESSES",
+      "level": 3,
+      "occurrence_rate": 0.2,
+      "required": false,
+      "variants": [],
+      "representative_content": "1. **Prof. Dr. Elisabeth Weber** - Industry Expert on Biotech R&D Management\n2. **Dr. Michael Schmidt** - Former Colleague, can testify to research contributions\n3. **Sarah Johnson** - HR Consultant specializing in executive employment law\n\n---"
+    }
+  ],
+  "legal_citations": [
+    "§ 1 KSchG",
+    "§ 1 Abs. 3 KSchG",
+    "§ 622 BGB",
+    "§ 102 BetrVG"
+  ],
+  "placeholders": [
+    "case_no",
+    "court",
+    "date_filed",
+    "defendant_address",
+    "defendant_company",
+    "defendant_hr_contact",
+    "defendant_legal_representative",
+    "plaintiff_address",
+    "plaintiff_department",
+    "plaintiff_employee_id",
+    "plaintiff_hire_date",
+    "plaintiff_name",
+    "plaintiff_position"
+  ],
+  "required_sections": [
+    "PLAINTIFF",
+    "DEFENDANT",
+    "STATEMENT OF CLAIM",
+    "I. FACTUAL BACKGROUND",
+    "II. LEGAL GROUNDS",
+    "III. RELIEF SOUGHT",
+    "SUPPORTING EVIDENCE",
+    "DOCUMENTS ATTACHED",
+    "CONCLUSION"
+  ],
+  "optional_sections": [
+    "WITNESS LIST",
+    "EXPERT WITNESSES"
+  ],
+  "variable_fields": [
+    "case_no",
+    "court",
+    "date_filed",
+    "defendant_address",
+    "defendant_company",
+    "defendant_hr_contact",
+    "defendant_legal_representative",
+    "plaintiff_address",
+    "plaintiff_department",
+    "plaintiff_employee_id",
+    "plaintiff_hire_date",
+    "plaintiff_name",
+    "plaintiff_position"
+  ],
+  "locked_legal_citations": [
+    "§ 1 KSchG",
+    "§ 1 Abs. 3 KSchG",
+    "§ 622 BGB",
+    "§ 102 BetrVG"
+  ],
+  "confidence": 0.95,
+  "source_examples": [
+    "dps_001.md",
+    "dps_002.md",
+    "dps_003.md",
+    "dps_004.md",
+    "dps_005.md"
+  ],
+  "notes": [
+    "Prototype learns structure from Markdown samples; production ingestion can swap parser adapters.",
+    "Fields observed with multiple values are treated as variable placeholders.",
+    "Critical legal citations are surfaced for lawyer review before template approval.",
+    "Generation uses canonical section guidance instead of copying whole source sections."
+  ]
+}
