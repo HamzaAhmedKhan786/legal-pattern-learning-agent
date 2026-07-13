@@ -229,11 +229,31 @@ See:
 - `docs/qa_score_comparison.md`
 - `RESULTS.md`
 
-## What Is Still Left
+## Future Production Suggestions
 
-For final submission, the remaining work is:
+For production, I would keep this prototype's agent boundaries but replace the
+lightweight internals with more robust services and review workflows.
 
-- record the Loom walkthrough,
-- optionally clean generated `__pycache__` folders before zipping,
-- optionally add one static architecture image if Mermaid rendering is not
-  convenient for the reviewer.
+My next production improvements would be:
+
+- Add PDF, DOCX, and OCR ingestion adapters so the same downstream agents can
+  work with real law-firm documents, not only Markdown samples.
+- Add retrieval over approved firm templates, prior filings, and clause libraries
+  so generation is grounded in reviewed source material.
+- Introduce LLMs through structured-output contracts for semantic clause
+  classification, template-variable suggestions, and controlled draft
+  generation.
+- Add locked clauses and redline comparison so critical legal language cannot be
+  silently rewritten.
+- Add a lawyer approval workflow for templates, generated drafts, low-confidence
+  sections, and agent disagreements.
+- Track lawyer edits after review and use that feedback as an evaluation signal
+  for future template improvements.
+- Add jurisdiction-specific rule checks, citation validation, PII controls,
+  audit logs, and tenant isolation.
+- Add observability for latency, cost, parser confidence, template confidence,
+  QA findings, and post-review edit distance.
+
+My production direction would be to treat the AI as a drafting and pattern
+learning assistant, while keeping lawyers in control of legal judgment,
+template approval, and final filing decisions.
