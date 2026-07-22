@@ -168,12 +168,37 @@ python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
 python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
 ```
 
+By default this uses a deterministic mock LLM provider so the project runs
+without credentials. To use a local Llama model through Ollama:
+
+```bash
+ollama serve
+ollama pull llama3.1
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm ollama --model llama3.1
+```
+
+To use an API-key based OpenAI-compatible provider:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm openai-compatible --model gpt-4o-mini
+```
+
+Optional environment variables:
+
+```text
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+```
+
 This agentic path adds the missing AI-engineering layer:
 
 - planning step,
 - prompt templates in `prompts/`,
 - retrieval grounding over parsed source sections,
-- structured mock-LLM outputs,
+- structured LLM outputs via mock, Ollama/local-Llama, or OpenAI-compatible providers,
 - draft critique,
 - revision decision,
 - run traces in `outputs/runs/`.

@@ -19,6 +19,11 @@ The mock client does not claim to be real AI. It exists so the same code path ca
 show prompt construction, structured JSON responses, and agent decisions without
 requiring API keys.
 
+The same interface now also supports:
+
+- `OllamaLlmClient` for local Llama-style models through Ollama.
+- `OpenAICompatibleLlmClient` for API-key based chat-completions providers.
+
 ### Prompt Templates
 
 Folder:
@@ -101,10 +106,24 @@ python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
 python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
 ```
 
+Local Llama through Ollama:
+
+```bash
+ollama serve
+ollama pull llama3.1
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm ollama --model llama3.1
+```
+
+OpenAI-compatible API mode:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm openai-compatible --model gpt-4o-mini
+```
+
 ## What This Still Is
 
-This is still not a production LLM system. It is an LLM-ready prototype with a
-mock provider. A production version would replace `MockLlmClient` with a real
-model client and add schema validation, retries, token/cost tracking, and model
+This is still not a production LLM system. It is an LLM-ready prototype with
+mock, local, and API provider options. A production version would add stricter
+schema validation, retries, token/cost tracking, safety filters, and model
 evaluation.
-

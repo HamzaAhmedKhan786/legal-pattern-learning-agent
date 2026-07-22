@@ -376,8 +376,9 @@ Main lesson:
 The repository now includes a v2-style agentic path that addresses the main
 missing signals:
 
-- `src/legal_pattern_system/llm_client.py` adds an LLM client protocol and mock
-  structured-output provider.
+- `src/legal_pattern_system/llm_client.py` adds an LLM client protocol, mock
+  structured-output provider, local Ollama provider, and OpenAI-compatible API
+  provider.
 - `prompts/` contains planning, pattern extraction, grounded generation, QA
   critique, and revision prompts.
 - `src/legal_pattern_system/retrieval.py` adds retrieval over parsed source

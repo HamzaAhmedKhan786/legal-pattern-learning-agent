@@ -45,11 +45,18 @@ python scripts\run_pipeline.py --doc-type claims_for_damages
 ```
 
 Run the corrected LLM-style agentic pipeline with planning, retrieval,
-structured mock-LLM outputs, critique/revision, and trace artifacts:
+structured LLM outputs, critique/revision, and trace artifacts:
 
 ```bash
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
 python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
+```
+
+Optional real LLM modes:
+
+```bash
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm ollama --model llama3.1
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm openai-compatible --model gpt-4o-mini
 ```
 
 Generate a draft from a saved template and example case-data JSON:

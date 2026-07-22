@@ -130,13 +130,15 @@ This corrected path adds:
 
 - prompt templates in `prompts/`,
 - an `LlmClient` protocol and mock structured-output provider,
+- optional local Llama/Ollama and OpenAI-compatible API providers,
 - retrieval grounding over parsed source sections,
 - a planning step,
 - draft critique and revision decision,
 - per-run trace artifacts under `outputs/runs/`,
 - tests for retrieval and trace generation.
 
-This still runs without external API keys, but the control flow now mirrors a
-real LLM-agent system more closely. A production version would replace the mock
-client with a real model provider and add schema validation, retries, token/cost
-tracking, and model-quality evaluation.
+This still runs without external API keys in mock mode, but can also use local
+Llama through Ollama or an API-key based OpenAI-compatible provider. The control
+flow now mirrors a real LLM-agent system more closely. A production version
+would add stricter schema validation, retries, token/cost tracking, and
+model-quality evaluation.
