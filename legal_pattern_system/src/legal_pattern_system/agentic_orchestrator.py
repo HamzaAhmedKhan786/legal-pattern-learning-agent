@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from legal_pattern_system.agents.orchestrator import LegalPatternOrchestrator
+from legal_pattern_system.agents.qa_agent import QaAgent
 from legal_pattern_system.llm_client import LlmClient, MockLlmClient
-from legal_pattern_system.models import AgentRunReport, AgentStep, GeneratedDocument, QaReport, RetrievalChunk
+from legal_pattern_system.models import AgentRunReport, AgentStep, GeneratedDocument, LearnedTemplate, QaReport, RetrievalChunk
 from legal_pattern_system.retrieval import SimpleRetriever
 
 
@@ -24,6 +26,7 @@ class AgenticLegalPatternOrchestrator:
         trace_dir = output_root / "runs" / f"{document_dir.name}_{run_id}"
         trace_dir.mkdir(parents=True, exist_ok=True)
         steps: list[AgentStep] = []
+        self._write_json(trace_dir / "00_prompt_manifest.json", self._prompt_manifest())
 
         plan = self.llm.complete_json(
             purpose="plan",
@@ -72,13 +75,30 @@ class AgenticLegalPatternOrchestrator:
         )
         self._write_json(trace_dir / "05_generation_llm_response.json", generation_response)
 
-        draft_v1, qa_v1 = self.base.generate_and_evaluate(template, case_data)
+        draft_response = self.llm.complete_json(
+            purpose="draft_document",
+            prompt=self._prompt("draft_document.md"),
+            context={
+                "template": template.to_dict(),
+                "case_data": case_data,
+                "retrieved_chunks": [self._chunk_dict(chunk) for chunk in retrieved],
+                "drafting_strategy": generation_response,
+            },
+        )
+        self._write_json(trace_dir / "06_draft_llm_response.json", draft_response)
+        draft_v1 = GeneratedDocument(
+            document_type=template.document_type,
+            content=draft_response["draft_markdown"],
+            used_placeholders=[],
+            unresolved_placeholders=[],
+        )
+        qa_v1 = QaAgent().evaluate(template, draft_v1)
         (trace_dir / "06_draft_v1.md").write_text(draft_v1.content, encoding="utf-8")
         self._write_json(trace_dir / "07_qa_v1.json", qa_v1.to_dict())
         steps.append(
             AgentStep(
                 "GroundedDraftingAgent",
-                "Generate draft using template plus retrieved grounding",
+                "Generate LLM draft using template plus retrieved grounding",
                 f"chunks={generation_response['grounding_chunk_ids']}",
                 f"draft words={len(draft_v1.content.split())}, QA={qa_v1.score}",
                 "06_draft_v1.md",
@@ -101,9 +121,18 @@ class AgenticLegalPatternOrchestrator:
             )
         )
 
-        draft_v2, qa_v2 = self._revise_if_needed(template_document=draft_v1, qa_report=qa_v1, critique=critique)
+        draft_v2, qa_v2 = self._revise_if_needed(
+            template_document=draft_v1,
+            qa_report=qa_v1,
+            critique=critique,
+            template=template,
+            case_data=case_data,
+            retrieved_chunks=[self._chunk_dict(chunk) for chunk in retrieved],
+            trace_dir=trace_dir,
+        )
         (trace_dir / "09_draft_v2.md").write_text(draft_v2.content, encoding="utf-8")
         self._write_json(trace_dir / "10_qa_v2.json", qa_v2.to_dict())
+        self._write_human_review_packet(trace_dir, draft_v2, qa_v2, retrieved, template.to_dict())
         steps.append(
             AgentStep(
                 "RevisionAgent",
@@ -132,25 +161,83 @@ class AgenticLegalPatternOrchestrator:
         template_document: GeneratedDocument,
         qa_report: QaReport,
         critique: dict[str, Any],
+        template: LearnedTemplate,
+        case_data: dict[str, Any],
+        retrieved_chunks: list[dict[str, Any]],
+        trace_dir: Path,
     ) -> tuple[GeneratedDocument, QaReport]:
         if critique.get("decision") != "revise":
             return template_document, qa_report
 
-        revision_note = "\n\n<!-- Revision note: deterministic QA findings were reviewed by the critique agent. -->\n"
+        revision_response = self.llm.complete_json(
+            purpose="revision",
+            prompt=self._prompt("revision.md"),
+            context={
+                "draft_markdown": template_document.content,
+                "qa_findings": [finding.message for finding in qa_report.findings],
+                "critique": critique,
+                "template": template.to_dict(),
+                "case_data": case_data,
+                "retrieved_chunks": retrieved_chunks,
+            },
+        )
+        self._write_json(trace_dir / "08b_revision_llm_response.json", revision_response)
         revised = GeneratedDocument(
             document_type=template_document.document_type,
-            content=template_document.content + revision_note,
+            content=revision_response["draft_markdown"],
             used_placeholders=template_document.used_placeholders,
             unresolved_placeholders=template_document.unresolved_placeholders,
         )
-        return revised, qa_report
+        return revised, QaAgent().evaluate(template, revised)
 
     def _prompt(self, filename: str) -> str:
         prompt_path = Path(__file__).resolve().parents[2] / "prompts" / filename
         return prompt_path.read_text(encoding="utf-8")
 
+    def _prompt_manifest(self) -> dict[str, Any]:
+        prompt_dir = Path(__file__).resolve().parents[2] / "prompts"
+        manifest: dict[str, Any] = {"version": "2026-07-22", "prompts": []}
+        for prompt_file in sorted(prompt_dir.glob("*.md")):
+            content = prompt_file.read_text(encoding="utf-8")
+            manifest["prompts"].append(
+                {
+                    "name": prompt_file.name,
+                    "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                }
+            )
+        return manifest
+
     def _write_json(self, path: Path, data: Any) -> None:
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _write_human_review_packet(
+        self,
+        trace_dir: Path,
+        final_draft: GeneratedDocument,
+        qa_report: QaReport,
+        retrieved_chunks: list[RetrievalChunk],
+        template: dict[str, Any],
+    ) -> None:
+        packet = {
+            "status": "pending_lawyer_review",
+            "review_required": True,
+            "review_reasons": [
+                "LLM-generated legal draft",
+                "Template requires lawyer approval before use",
+                "Retrieved grounding chunks should be checked against matter facts",
+            ],
+            "qa_score": qa_report.score,
+            "qa_findings": [finding.message for finding in qa_report.findings],
+            "template_confidence": template.get("confidence"),
+            "grounding_sources": [self._chunk_dict(chunk) for chunk in retrieved_chunks],
+            "feedback_capture": {
+                "lawyer_decision": "approve | request_changes | reject",
+                "redline_notes": [],
+                "final_filing_ready": False,
+            },
+            "draft_preview": final_draft.content[:2000],
+        }
+        self._write_json(trace_dir / "12_human_review_packet.json", packet)
 
     def _chunk_dict(self, chunk: RetrievalChunk) -> dict[str, Any]:
         return {

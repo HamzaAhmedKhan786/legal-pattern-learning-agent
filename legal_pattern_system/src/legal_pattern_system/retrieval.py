@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from math import sqrt
 
 from legal_pattern_system.models import LegalDocument, RetrievalChunk
 
@@ -10,11 +11,13 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9§]+")
 
 
 class SimpleRetriever:
-    """Small lexical retriever over parsed legal document sections.
+    """Small local vector-style retriever over parsed legal document sections.
 
-    This is intentionally lightweight, but it implements the missing retrieval
-    idea: generation and QA can inspect which source sections were used for
-    grounding instead of operating from the template alone.
+    It uses hashed bag-of-words vectors rather than an external embedding model,
+    which keeps the repository dependency-free while still exercising the same
+    vector-search control flow: chunk, embed, rank, return grounding evidence.
+    Production would replace `_embedding` with a real embedding model and vector
+    database.
     """
 
     def build_chunks(self, documents: list[LegalDocument]) -> list[RetrievalChunk]:
@@ -38,17 +41,17 @@ class SimpleRetriever:
     def retrieve(self, documents: list[LegalDocument], case_data: dict[str, object], *, top_k: int = 5) -> list[RetrievalChunk]:
         chunks = self.build_chunks(documents)
         query = " ".join(str(value) for value in case_data.values())
-        query_terms = self._tokens(query)
-        if not query_terms:
+        query_embedding = self._embedding(query)
+        if not query_embedding:
             return chunks[:top_k]
 
         scored: list[RetrievalChunk] = []
         for chunk in chunks:
-            chunk_terms = self._tokens(f"{chunk.heading} {chunk.text}")
-            overlap = sum((query_terms & chunk_terms).values())
+            chunk_text = f"{chunk.heading} {chunk.text}"
+            vector_score = self._cosine(query_embedding, self._embedding(chunk_text))
             citation_bonus = 2 if "§" in chunk.text else 0
             heading_bonus = 4 if chunk.heading == "II. LEGAL GROUNDS" else 1 if chunk.heading == "SUPPORTING EVIDENCE" else 0
-            score = float(overlap + citation_bonus + heading_bonus)
+            score = float(vector_score + citation_bonus + heading_bonus)
             scored.append(
                 RetrievalChunk(
                     chunk_id=chunk.chunk_id,
@@ -70,3 +73,20 @@ class SimpleRetriever:
 
     def _tokens(self, text: str) -> Counter[str]:
         return Counter(token.lower() for token in TOKEN_RE.findall(text))
+
+    def _embedding(self, text: str, dimensions: int = 128) -> dict[int, float]:
+        vector: dict[int, float] = {}
+        for token, count in self._tokens(text).items():
+            index = hash(token) % dimensions
+            vector[index] = vector.get(index, 0.0) + float(count)
+        return vector
+
+    def _cosine(self, left: dict[int, float], right: dict[int, float]) -> float:
+        if not left or not right:
+            return 0.0
+        dot = sum(value * right.get(index, 0.0) for index, value in left.items())
+        left_norm = sqrt(sum(value * value for value in left.values()))
+        right_norm = sqrt(sum(value * value for value in right.values()))
+        if left_norm == 0 or right_norm == 0:
+            return 0.0
+        return dot / (left_norm * right_norm)

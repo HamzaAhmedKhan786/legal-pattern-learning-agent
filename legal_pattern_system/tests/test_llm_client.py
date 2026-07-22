@@ -8,6 +8,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from legal_pattern_system.llm_client import MockLlmClient, OllamaLlmClient, create_llm_client
+from legal_pattern_system.schema_validation import SchemaValidationError, validate_llm_response
 
 
 class LlmClientTest(unittest.TestCase):
@@ -27,6 +28,10 @@ class LlmClientTest(unittest.TestCase):
         )
         self.assertIn("steps", response)
         self.assertIn("reasoning", response)
+
+    def test_schema_validation_rejects_missing_fields(self) -> None:
+        with self.assertRaises(SchemaValidationError):
+            validate_llm_response("draft_document", {"draft_markdown": "# Draft"})
 
 
 if __name__ == "__main__":

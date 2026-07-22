@@ -1,0 +1,33 @@
+[
+  {
+    "id": "dismissal_mvp_case",
+    "doc_type": "dismissal_protection_suits",
+    "case_data": "examples/dismissal_case_data.json",
+    "expected_required_sections": [
+      "STATEMENT OF CLAIM",
+      "I. FACTUAL BACKGROUND",
+      "II. LEGAL GROUNDS",
+      "III. RELIEF SOUGHT",
+      "SUPPORTING EVIDENCE",
+      "CONCLUSION"
+    ],
+    "expected_min_qa_score": 0.9,
+    "lawyer_score_placeholder": null
+  },
+  {
+    "id": "damages_mvp_case",
+    "doc_type": "claims_for_damages",
+    "case_data": "examples/damages_case_data.json",
+    "expected_required_sections": [
+      "STATEMENT OF CLAIM",
+      "I. FACTUAL BACKGROUND",
+      "II. LEGAL GROUNDS",
+      "III. DAMAGES CLAIMED",
+      "IV. RELIEF SOUGHT",
+      "SUPPORTING EVIDENCE",
+      "CONCLUSION"
+    ],
+    "expected_min_qa_score": 0.9,
+    "lawyer_score_placeholder": null
+  }
+]

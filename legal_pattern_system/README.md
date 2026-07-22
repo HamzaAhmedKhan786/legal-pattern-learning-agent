@@ -271,6 +271,7 @@ See:
 - `docs/loom_script.md`
 - `docs/qa_score_comparison.md`
 - `docs/v2_agentic_corrections.md`
+- `docs/production_web_plan.md`
 - `RESULTS.md`
 
 ## Future Production Suggestions

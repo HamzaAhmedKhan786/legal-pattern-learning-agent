@@ -23,6 +23,7 @@ legal_pattern_system/docs/architecture.md
 legal_pattern_system/docs/design_decisions.md
 legal_pattern_system/docs/qa_score_comparison.md
 legal_pattern_system/docs/v2_agentic_corrections.md
+legal_pattern_system/docs/production_web_plan.md
 ```
 
 The runnable scripts are in:
