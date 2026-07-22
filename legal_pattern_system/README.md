@@ -17,8 +17,10 @@ This prototype:
 - compares multiple examples from the same document family,
 - learns stable sections, variable fields, legal citations, and repeated patterns,
 - builds a reusable JSON template,
-- generates a new Markdown draft from sample case details,
-- runs a QA pass over the generated draft,
+- can generate a new Markdown draft through a mock LLM, local Ollama model, or
+  OpenAI-compatible API,
+- validates structured LLM JSON, retries/normalizes common provider shape
+  issues, and runs QA over the generated draft,
 - documents the production architecture, tradeoffs, and answers to the three
   additional challenge questions.
 
@@ -27,9 +29,11 @@ This prototype:
 Current prototype:
 
 - uses Markdown because the provided files are Markdown,
-- uses deterministic Python agents so behavior is reproducible,
-- uses only the Python standard library,
-- writes learned templates, generated drafts, and QA reports to disk.
+- uses a deterministic mock LLM by default so behavior is reproducible,
+- can switch to real LLM execution with Ollama or an OpenAI-compatible API,
+- uses only the Python standard library for the core pipeline,
+- writes learned templates, generated drafts, QA reports, prompt manifests, and
+  agent traces to disk.
 
 Production version:
 
@@ -51,9 +55,19 @@ would add surface area without proving the core architecture.
 
 ## Agents
 
-The system uses software agents. They are deterministic agents in this prototype,
-not autonomous LLM agents. That is deliberate: the reviewers can run the project
-without API keys and inspect every decision.
+The system now has two runnable paths:
+
+- `scripts/run_pipeline.py`: deterministic baseline for reproducible template
+  learning, generation, and QA.
+- `scripts/run_agentic_pipeline.py`: LLM-style agent loop with planning,
+  retrieval grounding, structured prompts, drafting, critique, revision, schema
+  validation, and trace artifacts.
+
+The agentic path can use:
+
+- `mock`: deterministic LLM-shaped responses for easy reviewer execution,
+- `ollama`: local Llama through Ollama,
+- `openai-compatible`: hosted API provider with JSON response mode.
 
 - `DocumentParserAgent`: turns source files into normalized `LegalDocument`
   objects.
@@ -64,6 +78,8 @@ without API keys and inspect every decision.
   case data.
 - `QaAgent`: checks unresolved placeholders, missing required sections, missing
   citations, and suspiciously short drafts.
+- `PlanningAgent`, `LLMPatternAgent`, `GroundedDraftingAgent`, `CritiqueAgent`,
+  and `RevisionAgent`: LLM-facing roles in the corrected agentic pipeline.
 - `LegalPatternOrchestrator`: coordinates the full workflow.
 
 ## Dependencies
@@ -189,6 +205,7 @@ Optional environment variables:
 ```text
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
+LLM_TIMEOUT_SECONDS=360
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 ```
@@ -199,8 +216,10 @@ This agentic path adds the missing AI-engineering layer:
 - prompt templates in `prompts/`,
 - retrieval grounding over parsed source sections,
 - structured LLM outputs via mock, Ollama/local-Llama, or OpenAI-compatible providers,
+- schema validation plus conservative normalization for common LLM JSON shape errors,
 - draft critique,
 - revision decision,
+- deterministic safety guardrail if an LLM revision makes no QA improvement,
 - run traces in `outputs/runs/`.
 
 Run tests:

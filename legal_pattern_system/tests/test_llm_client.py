@@ -8,7 +8,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from legal_pattern_system.llm_client import MockLlmClient, OllamaLlmClient, create_llm_client
-from legal_pattern_system.schema_validation import SchemaValidationError, validate_llm_response
+from legal_pattern_system.schema_validation import SchemaValidationError, normalize_llm_response, validate_llm_response
 
 
 class LlmClientTest(unittest.TestCase):
@@ -32,6 +32,28 @@ class LlmClientTest(unittest.TestCase):
     def test_schema_validation_rejects_missing_fields(self) -> None:
         with self.assertRaises(SchemaValidationError):
             validate_llm_response("draft_document", {"draft_markdown": "# Draft"})
+
+    def test_schema_validation_rejects_nested_shape_errors(self) -> None:
+        with self.assertRaises(SchemaValidationError):
+            validate_llm_response(
+                "plan",
+                {
+                    "steps": [{"name": "parse_source_documents"}],
+                    "reasoning": "Nested step objects are not accepted by the orchestration layer.",
+                },
+            )
+
+    def test_normalizer_repairs_common_llm_list_shape(self) -> None:
+        normalized = normalize_llm_response(
+            "plan",
+            {
+                "steps": [{"name": "parse_source_documents"}],
+                "reasoning": "Use tools in order.",
+            },
+        )
+
+        self.assertEqual(normalized["steps"], ["parse_source_documents"])
+        validate_llm_response("plan", normalized)
 
 
 if __name__ == "__main__":

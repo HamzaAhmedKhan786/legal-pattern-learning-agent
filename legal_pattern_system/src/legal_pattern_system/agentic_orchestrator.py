@@ -71,7 +71,7 @@ class AgenticLegalPatternOrchestrator:
         generation_response = self.llm.complete_json(
             purpose="grounded_generation",
             prompt=self._prompt("grounded_generation.md"),
-            context={"retrieved_chunks": [self._chunk_dict(chunk) for chunk in retrieved], "case_data": case_data},
+            context={"retrieved_chunks": self._llm_chunks(retrieved), "case_data": case_data},
         )
         self._write_json(trace_dir / "05_generation_llm_response.json", generation_response)
 
@@ -79,9 +79,9 @@ class AgenticLegalPatternOrchestrator:
             purpose="draft_document",
             prompt=self._prompt("draft_document.md"),
             context={
-                "template": template.to_dict(),
+                "template": self._llm_template(template),
                 "case_data": case_data,
-                "retrieved_chunks": [self._chunk_dict(chunk) for chunk in retrieved],
+                "retrieved_chunks": self._llm_chunks(retrieved),
                 "drafting_strategy": generation_response,
             },
         )
@@ -166,6 +166,8 @@ class AgenticLegalPatternOrchestrator:
         retrieved_chunks: list[dict[str, Any]],
         trace_dir: Path,
     ) -> tuple[GeneratedDocument, QaReport]:
+        if not qa_report.findings:
+            return template_document, qa_report
         if critique.get("decision") != "revise":
             return template_document, qa_report
 
@@ -176,9 +178,9 @@ class AgenticLegalPatternOrchestrator:
                 "draft_markdown": template_document.content,
                 "qa_findings": [finding.message for finding in qa_report.findings],
                 "critique": critique,
-                "template": template.to_dict(),
+                "template": self._llm_template(template),
                 "case_data": case_data,
-                "retrieved_chunks": retrieved_chunks,
+                "retrieved_chunks": self._compact_chunk_dicts(retrieved_chunks),
             },
         )
         self._write_json(trace_dir / "08b_revision_llm_response.json", revision_response)
@@ -188,7 +190,22 @@ class AgenticLegalPatternOrchestrator:
             used_placeholders=template_document.used_placeholders,
             unresolved_placeholders=template_document.unresolved_placeholders,
         )
-        return revised, QaAgent().evaluate(template, revised)
+        revised_qa = QaAgent().evaluate(template, revised)
+        if revised_qa.score > qa_report.score:
+            return revised, revised_qa
+
+        fallback = self.base.generator.generate(template, case_data)
+        fallback_qa = QaAgent().evaluate(template, fallback)
+        self._write_json(
+            trace_dir / "08c_revision_guardrail.json",
+            {
+                "reason": "LLM revision did not improve deterministic QA score.",
+                "llm_revision_score": revised_qa.score,
+                "fallback_score": fallback_qa.score,
+                "action": "used_template_safe_assembly_for_final_draft",
+            },
+        )
+        return fallback, fallback_qa
 
     def _prompt(self, filename: str) -> str:
         prompt_path = Path(__file__).resolve().parents[2] / "prompts" / filename
@@ -247,3 +264,46 @@ class AgenticLegalPatternOrchestrator:
             "score": chunk.score,
             "text": chunk.text,
         }
+
+    def _llm_template(self, template: LearnedTemplate) -> dict[str, Any]:
+        """Expose only the template fields needed for LLM drafting."""
+
+        return {
+            "document_type": template.document_type,
+            "title": template.title,
+            "required_sections": template.required_sections,
+            "locked_legal_citations": template.locked_legal_citations,
+            "variable_fields": template.variable_fields,
+            "confidence": template.confidence,
+        }
+
+    def _llm_chunks(self, chunks: list[RetrievalChunk]) -> list[dict[str, Any]]:
+        """Send compact grounding excerpts to LLMs while preserving full traces on disk."""
+
+        return [
+            {
+                "chunk_id": chunk.chunk_id,
+                "source_path": chunk.source_path,
+                "heading": chunk.heading,
+                "score": round(chunk.score, 3),
+                "excerpt": self._truncate(chunk.text, 900),
+            }
+            for chunk in chunks[:4]
+        ]
+
+    def _compact_chunk_dicts(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "chunk_id": chunk.get("chunk_id"),
+                "source_path": chunk.get("source_path"),
+                "heading": chunk.get("heading"),
+                "score": chunk.get("score"),
+                "excerpt": self._truncate(str(chunk.get("text", "")), 900),
+            }
+            for chunk in chunks[:4]
+        ]
+
+    def _truncate(self, text: str, limit: int) -> str:
+        if len(text) <= limit:
+            return text
+        return text[: limit - 3].rstrip() + "..."

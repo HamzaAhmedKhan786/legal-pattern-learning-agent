@@ -56,9 +56,14 @@ python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
 Optional real LLM modes:
 
 ```bash
+set LLM_TIMEOUT_SECONDS=360
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm ollama --model llama3.1
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm openai-compatible --model gpt-4o-mini
 ```
+
+The real-provider path validates structured JSON, normalizes common LLM shape
+errors, records prompt/version traces, and applies a QA guardrail if an LLM
+revision fails to improve the draft.
 
 Generate a draft from a saved template and example case-data JSON:
 

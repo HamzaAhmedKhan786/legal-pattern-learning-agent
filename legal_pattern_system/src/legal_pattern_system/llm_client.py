@@ -3,11 +3,17 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 from typing import Any, Protocol
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from legal_pattern_system.schema_validation import validate_llm_response
+from legal_pattern_system.schema_validation import (
+    SchemaValidationError,
+    normalize_llm_response,
+    schema_instructions,
+    validate_llm_response,
+)
 
 
 class LlmClient(Protocol):
@@ -115,6 +121,7 @@ class OllamaLlmClient:
     def __init__(self, *, model: str = "llama3.1", base_url: str = "http://localhost:11434") -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = int(os.environ.get("LLM_TIMEOUT_SECONDS", "240"))
 
     def complete_json(self, *, purpose: str, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
         user_prompt = _structured_prompt(purpose=purpose, prompt=prompt, context=context)
@@ -123,11 +130,31 @@ class OllamaLlmClient:
             "prompt": user_prompt,
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0.1},
+            "options": _ollama_options(purpose, temperature=0.1),
         }
-        response = _post_json(f"{self.base_url}/api/generate", payload)
+        response = _post_json(f"{self.base_url}/api/generate", payload, timeout_seconds=self.timeout_seconds)
         text = response.get("response", "")
-        return validate_llm_response(purpose, _parse_json_response(text, provider=f"ollama:{self.model}"))
+        parsed = normalize_llm_response(purpose, _parse_json_response(text, provider=f"ollama:{self.model}"))
+        try:
+            return validate_llm_response(purpose, parsed)
+        except SchemaValidationError as exc:
+            return self._repair_json(purpose=purpose, invalid_response=parsed, validation_error=str(exc))
+
+    def _repair_json(self, *, purpose: str, invalid_response: dict[str, Any], validation_error: str) -> dict[str, Any]:
+        repair_prompt = _repair_prompt(purpose=purpose, invalid_response=invalid_response, validation_error=validation_error)
+        payload = {
+            "model": self.model,
+            "prompt": repair_prompt,
+            "stream": False,
+            "format": "json",
+            "options": _ollama_options(purpose, temperature=0.0, repair=True),
+        }
+        response = _post_json(f"{self.base_url}/api/generate", payload, timeout_seconds=self.timeout_seconds)
+        repaired = normalize_llm_response(
+            purpose,
+            _parse_json_response(response.get("response", ""), provider=f"ollama:{self.model}:repair"),
+        )
+        return validate_llm_response(purpose, repaired)
 
 
 class OpenAICompatibleLlmClient:
@@ -154,6 +181,7 @@ class OpenAICompatibleLlmClient:
         self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         if not self.api_key:
             raise LlmProviderError("OPENAI_API_KEY is required for --llm openai-compatible.")
+        self.timeout_seconds = int(os.environ.get("LLM_TIMEOUT_SECONDS", "240"))
 
     def complete_json(self, *, purpose: str, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -169,9 +197,31 @@ class OpenAICompatibleLlmClient:
             ],
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        response = _post_json(f"{self.base_url}/chat/completions", payload, headers=headers)
+        response = _post_json(f"{self.base_url}/chat/completions", payload, headers=headers, timeout_seconds=self.timeout_seconds)
         text = response["choices"][0]["message"]["content"]
-        return validate_llm_response(purpose, _parse_json_response(text, provider=f"openai-compatible:{self.model}"))
+        parsed = normalize_llm_response(purpose, _parse_json_response(text, provider=f"openai-compatible:{self.model}"))
+        try:
+            return validate_llm_response(purpose, parsed)
+        except SchemaValidationError as exc:
+            return self._repair_json(purpose=purpose, invalid_response=parsed, validation_error=str(exc))
+
+    def _repair_json(self, *, purpose: str, invalid_response: dict[str, Any], validation_error: str) -> dict[str, Any]:
+        payload = {
+            "model": self.model,
+            "temperature": 0.0,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": "Return only valid JSON matching the requested schema."},
+                {"role": "user", "content": _repair_prompt(purpose=purpose, invalid_response=invalid_response, validation_error=validation_error)},
+            ],
+        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        response = _post_json(f"{self.base_url}/chat/completions", payload, headers=headers, timeout_seconds=self.timeout_seconds)
+        repaired = normalize_llm_response(
+            purpose,
+            _parse_json_response(response["choices"][0]["message"]["content"], provider=f"openai-compatible:{self.model}:repair"),
+        )
+        return validate_llm_response(purpose, repaired)
 
 
 def create_llm_client(
@@ -198,12 +248,52 @@ def _structured_prompt(*, purpose: str, prompt: str, context: dict[str, Any]) ->
             prompt,
             "Context JSON:",
             json.dumps(context, ensure_ascii=False, indent=2),
+            "Required JSON schema:",
+            schema_instructions(purpose),
             "Return only one valid JSON object.",
         ]
     )
 
 
-def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+def _ollama_options(purpose: str, *, temperature: float, repair: bool = False) -> dict[str, Any]:
+    """Keep local-model calls bounded so agent steps do not hang indefinitely."""
+
+    num_predict_by_purpose = {
+        "plan": 256,
+        "pattern_extraction": 256,
+        "grounded_generation": 256,
+        "draft_document": 2200,
+        "qa_critique": 256,
+        "revision": 1600,
+    }
+    return {
+        "temperature": temperature,
+        "num_ctx": 4096,
+        "num_predict": 512 if repair else num_predict_by_purpose.get(purpose, 512),
+    }
+
+
+def _repair_prompt(*, purpose: str, invalid_response: dict[str, Any], validation_error: str) -> str:
+    return "\n\n".join(
+        [
+            f"Repair this JSON response for purpose: {purpose}",
+            f"Validation error: {validation_error}",
+            "Required JSON schema:",
+            schema_instructions(purpose),
+            "Invalid response JSON:",
+            json.dumps(invalid_response, ensure_ascii=False, indent=2),
+            "Return only the corrected JSON object. Do not add explanations.",
+        ]
+    )
+
+
+def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str] | None = None,
+    *,
+    timeout_seconds: int = 240,
+) -> dict[str, Any]:
     request_headers = {"Content-Type": "application/json", **(headers or {})}
     request = Request(
         url,
@@ -212,8 +302,12 @@ def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str] | None
         method="POST",
     )
     try:
-        with urlopen(request, timeout=120) as response:
+        with urlopen(request, timeout=timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
+    except TimeoutError as exc:
+        raise LlmProviderError(f"LLM provider request timed out after {timeout_seconds} seconds: {url}") from exc
+    except socket.timeout as exc:
+        raise LlmProviderError(f"LLM provider request timed out after {timeout_seconds} seconds: {url}") from exc
     except URLError as exc:
         raise LlmProviderError(f"LLM provider request failed: {exc}") from exc
     except json.JSONDecodeError as exc:
