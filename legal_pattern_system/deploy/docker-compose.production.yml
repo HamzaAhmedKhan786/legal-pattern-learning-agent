@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: legal_pattern_system
+      POSTGRES_USER: legal_ai
+      POSTGRES_PASSWORD: change-me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legal_ai -d legal_pattern_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+    environment:
+      DATABASE_URL: postgresql://legal_ai:change-me@postgres:5432/legal_pattern_system
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      RATE_LIMIT_PER_MINUTE: 120
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

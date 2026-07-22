@@ -193,6 +193,8 @@ mlruns/
 *.csv
 *.json
 *.jsonl
+!legal_pattern_system/reference_data/
+!legal_pattern_system/reference_data/legal_document_sample_library.json
 *.parquet
 *.feather
 *.xlsx

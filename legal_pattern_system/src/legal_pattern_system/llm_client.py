@@ -154,7 +154,12 @@ class OllamaLlmClient:
             purpose,
             _parse_json_response(response.get("response", ""), provider=f"ollama:{self.model}:repair"),
         )
-        return validate_llm_response(purpose, repaired)
+        try:
+            return validate_llm_response(purpose, repaired)
+        except SchemaValidationError:
+            if purpose == "plan":
+                return validate_llm_response(purpose, _canonical_plan_response(provider=f"ollama:{self.model}"))
+            raise
 
 
 class OpenAICompatibleLlmClient:
@@ -221,7 +226,12 @@ class OpenAICompatibleLlmClient:
             purpose,
             _parse_json_response(response["choices"][0]["message"]["content"], provider=f"openai-compatible:{self.model}:repair"),
         )
-        return validate_llm_response(purpose, repaired)
+        try:
+            return validate_llm_response(purpose, repaired)
+        except SchemaValidationError:
+            if purpose == "plan":
+                return validate_llm_response(purpose, _canonical_plan_response(provider=f"openai-compatible:{self.model}"))
+            raise
 
 
 def create_llm_client(
@@ -238,6 +248,21 @@ def create_llm_client(
     if provider == "openai-compatible":
         return OpenAICompatibleLlmClient(api_key=api_key, model=model, base_url=base_url)
     raise ValueError(f"Unsupported LLM provider: {provider}")
+
+
+def _canonical_plan_response(*, provider: str) -> dict[str, Any]:
+    return {
+        "steps": [
+            "parse_source_documents",
+            "learn_template",
+            "retrieve_grounding_chunks",
+            "generate_grounded_draft",
+            "critique_draft",
+            "revise_if_needed",
+            "write_trace",
+        ],
+        "reasoning": f"{provider} failed to repair the fixed orchestration plan shape, so the canonical agent plan was used as a guardrail.",
+    }
 
 
 def _structured_prompt(*, purpose: str, prompt: str, context: dict[str, Any]) -> str:

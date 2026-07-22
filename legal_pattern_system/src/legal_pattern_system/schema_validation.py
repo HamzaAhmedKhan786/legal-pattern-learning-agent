@@ -11,6 +11,27 @@ def _is_string_list(value: Any) -> bool:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
+def _is_nonempty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _is_substantial_markdown(value: Any) -> bool:
+    return isinstance(value, str) and len(value.split()) >= 120 and "##" in value
+
+
+def _is_agent_plan(value: Any) -> bool:
+    expected = {
+        "parse_source_documents",
+        "learn_template",
+        "retrieve_grounding_chunks",
+        "generate_grounded_draft",
+        "critique_draft",
+        "revise_if_needed",
+        "write_trace",
+    }
+    return _is_string_list(value) and expected.issubset(set(value))
+
+
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -28,26 +49,26 @@ def _is_legal_risk(value: Any) -> bool:
 
 
 SCHEMAS: dict[str, dict[str, FieldValidator]] = {
-    "plan": {"steps": _is_string_list, "reasoning": lambda value: isinstance(value, str)},
+    "plan": {"steps": _is_agent_plan, "reasoning": _is_nonempty_string},
     "pattern_extraction": {
-        "pattern_summary": lambda value: isinstance(value, str),
-        "fixed_vs_variable_policy": lambda value: isinstance(value, str),
+        "pattern_summary": _is_nonempty_string,
+        "fixed_vs_variable_policy": _is_nonempty_string,
         "confidence": _is_number,
     },
     "grounded_generation": {
-        "drafting_strategy": lambda value: isinstance(value, str),
+        "drafting_strategy": _is_nonempty_string,
         "grounding_chunk_ids": _is_string_list,
         "warnings": _is_string_list,
     },
     "draft_document": {
-        "draft_markdown": lambda value: isinstance(value, str),
+        "draft_markdown": _is_substantial_markdown,
         "grounding_chunk_ids": _is_string_list,
         "assumptions": _is_string_list,
     },
     "qa_critique": {"decision": _is_decision, "critique": _is_string_list, "legal_risk": _is_legal_risk},
     "revision": {
-        "draft_markdown": lambda value: isinstance(value, str),
-        "revision_summary": lambda value: isinstance(value, str),
+        "draft_markdown": _is_substantial_markdown,
+        "revision_summary": _is_nonempty_string,
         "changed": _is_bool,
     },
 }

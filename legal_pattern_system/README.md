@@ -30,9 +30,69 @@ Workspace:
 
 ![Workspace dashboard](screenshots/workspace.png)
 
+Generated draft output:
+
+![Generated draft output](screenshots/generated-output.png)
+
+Live generation process:
+
+![Running process indicator](screenshots/running-process.png)
+
 Sample library:
 
 ![Sample library](screenshots/library.png)
+
+History:
+
+![History](screenshots/history.png)
+
+Profile:
+
+![Profile](screenshots/profile.png)
+
+Settings:
+
+![Settings](screenshots/settings.png)
+
+Firm admin:
+
+![Firm admin](screenshots/admin.png)
+
+Contact and AI support chatbot:
+
+![Contact](screenshots/contact.png)
+
+Login:
+
+![Login](screenshots/login.png)
+
+Signup:
+
+![Signup](screenshots/signup.png)
+
+About:
+
+![About](screenshots/about.png)
+
+Careers:
+
+![Careers](screenshots/careers.png)
+
+Privacy policy:
+
+![Privacy policy](screenshots/privacy.png)
+
+Terms:
+
+![Terms](screenshots/terms.png)
+
+Impressum:
+
+![Impressum](screenshots/impressum.png)
+
+GDPR:
+
+![GDPR](screenshots/gdpr.png)
 
 ## Current Scope vs. Production
 
@@ -53,15 +113,24 @@ Production version:
 - would include clause locking, redline comparison, template versioning, lawyer
   approval workflows, and observability.
 
-## Do We Need a Frontend?
+## Frontend And Backend
 
-No frontend is needed for this assessment. The email explicitly says Django or
-FastAPI is not required and asks for Python code plus notes. A CLI prototype is
-the clearest fit.
+The original assessment can still be reviewed through the CLI scripts, because
+the brief mainly evaluates system design and agentic architecture. The project
+now also includes a product-style web app to demonstrate how the same workflow
+would look for a law firm.
 
-If this were productized, a frontend would be useful for lawyer upload, template
-review, redline comparison, and approval workflows. For the take-home, a frontend
-would add surface area without proving the core architecture.
+- Backend: FastAPI in `web/backend`.
+- Frontend: React/Vite in `web/frontend`.
+- Database: PostgreSQL schema in `web/backend/schema.sql`.
+- Auth: backend register/login/session endpoints with bearer tokens.
+- Profile/settings: DB-backed profile update, email verification request, and
+  password reset request endpoints.
+- Provider vault: encrypted provider API-key storage with metadata-only reads.
+- Subscription usage: server-side free/paid draft limit tracking before
+  generation.
+- RAG/MCP/support: upload/search scaffolding, audited MCP policy gate, contact
+  tickets, and AI chatbot support tickets.
 
 ## Agents
 
@@ -94,7 +163,7 @@ The agentic path can use:
 
 ## Dependencies
 
-No external libraries are required.
+The core CLI pipeline uses only the Python standard library.
 
 The project uses:
 
@@ -105,9 +174,10 @@ The project uses:
 - `re` for Markdown/field/citation extraction,
 - `unittest` for tests.
 
-This keeps setup simple. In production I would add selected dependencies such as
-Pydantic, PyMuPDF/pdfplumber, python-docx, an embeddings/vector database layer,
-and an LLM client with schema validation.
+The web backend adds FastAPI, Pydantic, psycopg, cryptography, and optional Redis
+rate limiting. Production document ingestion would add PyMuPDF/pdfplumber,
+python-docx, OCR tooling, an embeddings/vector database layer, and an LLM client
+with schema validation.
 
 ## What Is Dynamic?
 
@@ -243,6 +313,27 @@ Compile-check the code:
 ```bash
 python -m compileall src scripts tests
 ```
+
+Run the web backend with PostgreSQL enabled:
+
+```bash
+cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\web\backend
+pip install -r requirements-web.txt
+set DATABASE_URL=postgresql://postgres:your_password@localhost:5432/legal_pattern_system
+set APP_ENCRYPTION_KEY=generate_with_cryptography_fernet_generate_key
+python ..\..\scripts\init_database.py
+python -m uvicorn app:app --host 127.0.0.1 --port 8001
+```
+
+Run the web frontend:
+
+```bash
+cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\web\frontend
+npm install
+npm run dev
+```
+
+The Vite dev server proxies API calls to `http://127.0.0.1:8001`.
 
 ## Inputs
 

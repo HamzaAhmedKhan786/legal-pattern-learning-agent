@@ -47,12 +47,20 @@ class LlmClientTest(unittest.TestCase):
         normalized = normalize_llm_response(
             "plan",
             {
-                "steps": [{"name": "parse_source_documents"}],
+                "steps": [
+                    {"name": "parse_source_documents"},
+                    {"name": "learn_template"},
+                    {"name": "retrieve_grounding_chunks"},
+                    {"name": "generate_grounded_draft"},
+                    {"name": "critique_draft"},
+                    {"name": "revise_if_needed"},
+                    {"name": "write_trace"},
+                ],
                 "reasoning": "Use tools in order.",
             },
         )
 
-        self.assertEqual(normalized["steps"], ["parse_source_documents"])
+        self.assertEqual(normalized["steps"][0], "parse_source_documents")
         validate_llm_response("plan", normalized)
 
 

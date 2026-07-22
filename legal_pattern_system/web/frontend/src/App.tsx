@@ -18,12 +18,30 @@ type AgentRun = {
   final_qa_score: number;
   trace_dir: string;
   draft_markdown?: string;
+  execution_log?: ExecutionLogEvent[];
+  legal_validation?: {
+    country: string;
+    status: string;
+    detected_citations: string[];
+    allowed_official_domains: string[];
+    official_source_hosts_seen: string[];
+    instruction: string;
+  };
   human_review?: {
     status?: string;
     review_required?: boolean;
     qa_score?: number;
     review_reasons?: string[];
   };
+};
+
+type ExecutionLogEvent = {
+  timestamp?: string;
+  agent: string;
+  phase: string;
+  status: "queued" | "running" | "completed" | "blocked" | "failed" | string;
+  message: string;
+  details?: Record<string, unknown>;
 };
 
 type SourceDocument = {
@@ -41,10 +59,44 @@ type FieldDef = {
 };
 
 type UserAccount = {
+  id?: string;
+  firm_id?: string;
   name: string;
   email: string;
   accountType: "individual" | "firm";
   role: "senior_lawyer" | "junior_lawyer" | "paralegal";
+  email_verified?: boolean;
+};
+
+type ProviderSettings = {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+  legalCountry: string;
+  outputLanguage: AppLanguage;
+};
+
+type LegalVerificationResult = {
+  country: string;
+  verification_status: string;
+  allowed_domains: string[];
+  checked_sources: Array<{ url: string; official: boolean }>;
+  rejected_sources: Array<{ url: string; official: boolean }>;
+  instruction: string;
+};
+
+type FeedbackRecord = {
+  id: string;
+  created_at: string;
+  run_id: string;
+  sentiment: "positive" | "negative";
+  comment: string;
+  document_type: string;
+  draft_markdown: string;
+  case_data: Record<string, string>;
+  qa_score?: number;
+  reviewer: string;
 };
 
 type SamplePack = {
@@ -56,26 +108,32 @@ type SamplePack = {
   sourceDocuments?: SourceDocument[];
 };
 
-type Page = "workspace" | "login" | "signup" | "library" | "settings" | "about" | "careers" | "privacy";
+type Page = "workspace" | "login" | "signup" | "library" | "history" | "profile" | "settings" | "admin" | "contact" | "about" | "careers" | "privacy" | "terms" | "impressum" | "gdpr";
 type ThemeMode = "system" | "light" | "dark";
 type AppLanguage = "DE" | "EN" | "ES" | "FR" | "IT";
 
-const appLanguages: Array<{ code: AppLanguage; flagClass: string; label: string }> = [
-  { code: "DE", flagClass: "flag-de", label: "Deutsch" },
-  { code: "EN", flagClass: "flag-gb", label: "English" },
-  { code: "ES", flagClass: "flag-es", label: "Spanish" },
-  { code: "FR", flagClass: "flag-fr", label: "French" },
-  { code: "IT", flagClass: "flag-it", label: "Italian" }
+const appLanguages: Array<{ code: AppLanguage; flagSrc: string; label: string; shortLabel: string }> = [
+  { code: "DE", flagSrc: "/flags/de.svg", label: "Deutsch", shortLabel: "DE" },
+  { code: "EN", flagSrc: "/flags/gb.svg", label: "English", shortLabel: "EN" },
+  { code: "ES", flagSrc: "/flags/es.svg", label: "Spanish", shortLabel: "ES" },
+  { code: "FR", flagSrc: "/flags/fr.svg", label: "French", shortLabel: "FR" },
+  { code: "IT", flagSrc: "/flags/it.svg", label: "Italian", shortLabel: "IT" }
 ];
 
 const uiCopy: Record<AppLanguage, Record<string, string>> = {
   EN: {
     workspace: "Workspace",
     samples: "Samples",
+    history: "History",
     settings: "Settings",
+    admin: "Admin",
     about: "About",
+    contact: "Contact",
     careers: "Careers",
     privacy: "Privacy",
+    terms: "Terms",
+    impressum: "Impressum",
+    gdpr: "GDPR",
     signOut: "Sign out",
     login: "Log in",
     signup: "Sign up",
@@ -104,10 +162,16 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   DE: {
     workspace: "Arbeitsbereich",
     samples: "Beispiele",
+    history: "Verlauf",
     settings: "Einstellungen",
+    admin: "Admin",
     about: "Uber uns",
+    contact: "Kontakt",
     careers: "Karriere",
     privacy: "Datenschutz",
+    terms: "Bedingungen",
+    impressum: "Impressum",
+    gdpr: "DSGVO",
     signOut: "Abmelden",
     login: "Anmelden",
     signup: "Registrieren",
@@ -136,10 +200,16 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   ES: {
     workspace: "Espacio",
     samples: "Muestras",
+    history: "Historial",
     settings: "Ajustes",
+    admin: "Admin",
     about: "Acerca",
+    contact: "Contacto",
     careers: "Carreras",
     privacy: "Privacidad",
+    terms: "Terminos",
+    impressum: "Aviso legal",
+    gdpr: "GDPR",
     signOut: "Salir",
     login: "Entrar",
     signup: "Registro",
@@ -168,10 +238,16 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   FR: {
     workspace: "Espace",
     samples: "Exemples",
+    history: "Historique",
     settings: "Reglages",
+    admin: "Admin",
     about: "A propos",
+    contact: "Contact",
     careers: "Carrieres",
     privacy: "Confidentialite",
+    terms: "Conditions",
+    impressum: "Mentions",
+    gdpr: "RGPD",
     signOut: "Deconnexion",
     login: "Connexion",
     signup: "Inscription",
@@ -200,10 +276,16 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   IT: {
     workspace: "Workspace",
     samples: "Esempi",
+    history: "Cronologia",
     settings: "Impostazioni",
+    admin: "Admin",
     about: "Chi siamo",
+    contact: "Contatto",
     careers: "Carriere",
     privacy: "Privacy",
+    terms: "Termini",
+    impressum: "Note legali",
+    gdpr: "GDPR",
     signOut: "Esci",
     login: "Accedi",
     signup: "Registrati",
@@ -547,15 +629,31 @@ const defaultUser: UserAccount = {
   role: "senior_lawyer"
 };
 
+const legalCountries = [
+  { code: "DE", label: "Germany" },
+  { code: "US", label: "United States" },
+  { code: "GB", label: "United Kingdom" },
+  { code: "FR", label: "France" },
+  { code: "ES", label: "Spain" },
+  { code: "IT", label: "Italy" }
+];
+
 const pagePaths: Record<Page, string> = {
   workspace: "/",
   login: "/login",
   signup: "/signup",
   library: "/library",
+  history: "/history",
+  profile: "/profile",
   settings: "/settings",
+  admin: "/admin",
+  contact: "/contact",
   about: "/about-us",
   careers: "/careers",
-  privacy: "/privacy-policy"
+  privacy: "/privacy-policy",
+  terms: "/terms",
+  impressum: "/impressum",
+  gdpr: "/gdpr"
 };
 
 function pageFromPath(pathname: string): Page {
@@ -569,8 +667,20 @@ function pageFromPath(pathname: string): Page {
   if (normalized === "/library") {
     return "library";
   }
+  if (normalized === "/history") {
+    return "history";
+  }
+  if (normalized === "/profile" || normalized === "/account") {
+    return "profile";
+  }
   if (normalized === "/settings" || normalized === "/access") {
     return "settings";
+  }
+  if (normalized === "/admin" || normalized === "/firm-admin") {
+    return "admin";
+  }
+  if (normalized === "/contact" || normalized === "/contact-us") {
+    return "contact";
   }
   if (normalized === "/about-us" || normalized === "/about us" || normalized === "/about") {
     return "about";
@@ -580,6 +690,15 @@ function pageFromPath(pathname: string): Page {
   }
   if (normalized === "/privacy-policy" || normalized === "/privacy") {
     return "privacy";
+  }
+  if (normalized === "/terms" || normalized === "/terms-of-service") {
+    return "terms";
+  }
+  if (normalized === "/impressum" || normalized === "/legal-notice") {
+    return "impressum";
+  }
+  if (normalized === "/gdpr" || normalized === "/data-processing") {
+    return "gdpr";
   }
   return "workspace";
 }
@@ -594,25 +713,122 @@ export default function App() {
   const selectedPack = builtInPacks.find((pack) => pack.id === selectedPackId) || builtInPacks[0];
   const [llmProvider, setLlmProvider] = useState("mock");
   const [model, setModel] = useState("");
+  const [providerSettings, setProviderSettings] = useState<ProviderSettings>({
+    provider: "mock",
+    model: "",
+    apiKey: "",
+    baseUrl: "",
+    legalCountry: "DE",
+    outputLanguage: "EN"
+  });
+  const [legalQuestion, setLegalQuestion] = useState("Verify the legal basis and jurisdiction-specific requirements for this draft.");
+  const [legalSourceUrls, setLegalSourceUrls] = useState("https://www.gesetze-im-internet.de/\nhttps://www.bundesarbeitsgericht.de/");
+  const [legalVerification, setLegalVerification] = useState<LegalVerificationResult | null>(null);
+  const [legalVerificationStatus, setLegalVerificationStatus] = useState("");
   const [caseData, setCaseData] = useState<Record<string, string>>(dismissalCaseData);
   const [sourceDocuments, setSourceDocuments] = useState<SourceDocument[]>(starterSourceDocuments);
   const [userPrompt, setUserPrompt] = useState("Draft in a formal court-ready style. Keep factual assertions separate from lawyer-review assumptions.");
   const [result, setResult] = useState<AgentRun | null>(null);
   const [status, setStatus] = useState("");
+  const [generationLog, setGenerationLog] = useState<ExecutionLogEvent[]>([]);
   const [error, setError] = useState("");
   const [activeView, setActiveView] = useState<"draft" | "trace" | "review">("draft");
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [historyRecords, setHistoryRecords] = useState<FeedbackRecord[]>([]);
+  const [historyStatus, setHistoryStatus] = useState("");
   const [currentPage, setCurrentPage] = useState<Page>(() => pageFromPath(window.location.pathname));
+  const [authToken, setAuthToken] = useState(() => sessionStorage.getItem("legal_ai_access_token") || "");
   const [user, setUser] = useState<UserAccount | null>(() => {
     const initialPage = pageFromPath(window.location.pathname);
-    return initialPage === "login" || initialPage === "signup" ? null : defaultUser;
+    const storedToken = sessionStorage.getItem("legal_ai_access_token");
+    return storedToken && initialPage !== "login" && initialPage !== "signup" ? defaultUser : null;
   });
   const [authDraft, setAuthDraft] = useState<UserAccount>(defaultUser);
+  const [authPassword, setAuthPassword] = useState("");
+  const [authFirmName, setAuthFirmName] = useState("Example Legal Partners LLP");
+  const [authStatus, setAuthStatus] = useState("");
+  const [providerSaveStatus, setProviderSaveStatus] = useState("");
+  const [providerConfigs, setProviderConfigs] = useState<Array<{ id: string; provider: string; model: string; base_url: string; scope: string; has_api_key: boolean }>>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("");
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{ plan: string; billing_cycle: string; monthly_limit: number; used_count: number; remaining: number } | null>(null);
+  const [classifierStatus, setClassifierStatus] = useState("");
+  const [learningStatus, setLearningStatus] = useState("");
+  const [learnedDrafts, setLearnedDrafts] = useState<SourceDocument[]>([]);
+  const [adminStatus, setAdminStatus] = useState("");
+  const [adminOverview, setAdminOverview] = useState<Record<string, unknown> | null>(null);
+  const progressTemplate: ExecutionLogEvent[] = [
+    { agent: "RequestGateway", phase: "intake", status: "queued", message: "Waiting to receive and validate the request input." },
+    { agent: "BillingAgent", phase: "plan", status: "queued", message: "Checking role, account scope, and monthly draft quota." },
+    { agent: "ProviderRouter", phase: "plan", status: "queued", message: "Selecting model provider and preparing the LLM client." },
+    { agent: "DocumentParserAgent", phase: "observe", status: "queued", message: "Reading source examples and normalizing document content." },
+    { agent: "PlanningAgent", phase: "plan", status: "queued", message: "Planning which agents and tools should handle this draft." },
+    { agent: "LLMPatternAgent", phase: "analyze", status: "queued", message: "Recognizing legal patterns, variables, repeated clauses, and required sections." },
+    { agent: "RetrievalAgent", phase: "observe", status: "queued", message: "Retrieving RAG grounding chunks from source examples." },
+    { agent: "GroundedDraftingAgent", phase: "act", status: "queued", message: "Drafting from facts, template, retrieved chunks, and user prompt." },
+    { agent: "CritiqueAgent", phase: "analyze", status: "queued", message: "Checking QA findings, missing facts, and legal-review risks." },
+    { agent: "RevisionAgent", phase: "act", status: "queued", message: "Reforming the draft when critique recommends revision." },
+    { agent: "HumanReviewAgent", phase: "observe", status: "queued", message: "Preparing review packet, trace artifacts, and feedback record hooks." },
+    { agent: "ResponseAssembler", phase: "act", status: "queued", message: "Preparing final draft response for the workspace." }
+  ];
 
   const activeDocType = mode === "built-in" ? selectedPack.backendDocType : "custom_legal_documents";
   const copy = uiCopy[appLanguage];
   const activeFields = fieldsFor(activeDocType, selectedPack.id);
   const missingRequired = activeFields.filter((field) => field.required && !String(caseData[field.key] || "").trim());
   const sourceDocumentsToSend = mode === "custom" ? sourceDocuments : selectedPack.sourceDocuments;
+  const accountScope = user?.accountType || "guest";
+  const firmId = user?.accountType === "firm" ? user.firm_id || "11111111-1111-4111-8111-111111111111" : "";
+  const userEmail = user?.email || "guest";
+
+  function apiHeaders(extra: Record<string, string> = {}) {
+    return authToken ? { ...extra, Authorization: `Bearer ${authToken}` } : extra;
+  }
+
+  function applyAuthenticatedUser(nextUser: UserAccount, token: string) {
+    setUser(nextUser);
+    setAuthDraft(nextUser);
+    setAuthToken(token);
+    sessionStorage.setItem("legal_ai_access_token", token);
+  }
+
+  function startGenerationProgress() {
+    setGenerationLog(progressTemplate.map((event, index) => ({ ...event, status: index === 0 ? "running" : "queued" })));
+    let cancelled = false;
+    const done = (async () => {
+      for (let activeIndex = 0; activeIndex < progressTemplate.length; activeIndex += 1) {
+        if (cancelled) {
+          return;
+        }
+        setGenerationLog(
+          progressTemplate.map((event, index) => ({
+            ...event,
+            status: index < activeIndex ? "completed" : index === activeIndex ? "running" : "queued"
+          }))
+        );
+        await wait(1150);
+      }
+      if (!cancelled) {
+        setGenerationLog(progressTemplate.map((event) => ({ ...event, status: "completed" })));
+      }
+    })();
+    return {
+      done,
+      cancel: () => {
+        cancelled = true;
+      }
+    };
+  }
+
+  function wait(ms: number) {
+    return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function failRunningProgress(message: string) {
+    setGenerationLog((current) =>
+      current.map((event) => (event.status === "running" ? { ...event, status: "failed", message } : event))
+    );
+  }
 
   const completionPercent = useMemo(() => {
     const required = activeFields.filter((field) => field.required);
@@ -630,15 +846,55 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!authToken) {
+      return;
+    }
+    fetch("/api/auth/me", { headers: apiHeaders() })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body.detail || "Session expired.");
+        }
+        setUser(body.user);
+        setAuthDraft(body.user);
+      })
+      .catch(() => {
+        setAuthToken("");
+        setUser(null);
+        sessionStorage.removeItem("legal_ai_access_token");
+      });
+  }, [authToken]);
+
+  useEffect(() => {
+    if (currentPage === "history") {
+      void loadHistory();
+    }
+    if (currentPage === "settings") {
+      void loadSubscription();
+      void loadProviderConfigs();
+    }
+    if (currentPage === "admin") {
+      void loadFirmAdminOverview();
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
     const titles: Record<Page, string> = {
       workspace: "Legal AI Pattern Drafting Studio",
       login: "Login | Legal AI Pattern Drafting Studio",
       signup: "Signup | Legal AI Pattern Drafting Studio",
       library: "Sample Library | Legal AI Pattern Drafting Studio",
+      history: "History | Legal AI Pattern Drafting Studio",
+      profile: "Profile | Legal AI Pattern Drafting Studio",
       settings: "Settings | Legal AI Pattern Drafting Studio",
+      admin: "Firm Admin | Legal AI Pattern Drafting Studio",
+      contact: "Contact | Legal AI Pattern Drafting Studio",
       about: "About Us | Legal AI Pattern Drafting Studio",
       careers: "Careers | Legal AI Pattern Drafting Studio",
-      privacy: "Privacy Policy | Legal AI Pattern Drafting Studio"
+      privacy: "Privacy Policy | Legal AI Pattern Drafting Studio",
+      terms: "Terms | Legal AI Pattern Drafting Studio",
+      impressum: "Impressum | Legal AI Pattern Drafting Studio",
+      gdpr: "GDPR | Legal AI Pattern Drafting Studio"
     };
     document.title = titles[currentPage];
   }, [currentPage]);
@@ -665,6 +921,13 @@ export default function App() {
     applyTopicSelection(selectedPracticeArea, topic);
   }
 
+  function openCatalogTopic(area: string, topic: string) {
+    setSelectedPracticeArea(area);
+    setSelectedDocumentTopic(topic);
+    applyTopicSelection(area, topic);
+    navigateToPage("workspace");
+  }
+
   function applyTopicSelection(area: string, topic: string) {
     const packId = runnableDocumentMap[`${area}::${topic}`];
     if (packId) {
@@ -672,6 +935,19 @@ export default function App() {
       setMode("built-in");
     } else {
       setMode("custom");
+      setCaseData({
+        ...Object.fromEntries(customFields.map((field) => [field.key, ""])),
+        case_no: `${topic.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 12) || "MATTER"}-2026-001`,
+        date_filed: new Date().toISOString().slice(0, 10),
+        matter_summary: `${topic} matter in ${area}. Add client facts, opposing party details, requested relief, and supporting evidence before generation.`
+      });
+      setSourceDocuments([
+        {
+          id: Date.now(),
+          name: `${topic.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_sample.md`,
+          content: `# ${topic.toUpperCase()}\n\n## PARTIES\n\n## FACTUAL BACKGROUND\n\n## LEGAL BASIS\n\n## REQUESTED RELIEF\n\n## SUPPORTING EVIDENCE\n\n## CONCLUSION\n`
+        }
+      ]);
       setResult(null);
     }
   }
@@ -719,26 +995,46 @@ export default function App() {
 
     setError("");
     setResult(null);
-    setStatus("Learning patterns, grounding clauses, and preparing the draft...");
+    setStatus("Request submitted. Agents are starting the drafting workflow...");
+    const progress = startGenerationProgress();
 
     const payload = {
       doc_type: activeDocType,
       llm_provider: llmProvider,
       model: model || undefined,
+      api_key: providerSettings.apiKey || undefined,
+      base_url: providerSettings.baseUrl || undefined,
+      legal_country: providerSettings.legalCountry,
+      output_language: providerSettings.outputLanguage,
       case_data: {
         ...caseData,
         user_prompt: userPrompt,
-        requested_by: user?.email || "guest",
-        account_scope: user?.accountType || "guest",
+        requested_by: userEmail,
+        account_scope: accountScope,
+        firm_id: firmId,
+        legal_country: providerSettings.legalCountry,
+        output_language: providerSettings.outputLanguage,
         reviewer_visibility: user?.role === "junior_lawyer" ? "assigned_senior_only" : "firm_senior_review"
       },
-      source_documents: sourceDocumentsToSend?.map(({ name, content }) => ({ name, content }))
+      source_documents: sourceDocumentsToSend?.map(({ name, content }) => ({ name, content })),
+      account_scope: accountScope,
+      firm_id: firmId,
+      user_email: userEmail
     };
 
     try {
+      try {
+        const health = await fetch("/health");
+        if (!health.ok) {
+          throw new Error("Backend health check failed.");
+        }
+      } catch {
+        throw new Error("Backend API is not reachable. Start the FastAPI backend on port 8001, then generate again.");
+      }
+
       const response = await fetch("/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload)
       });
 
@@ -747,12 +1043,22 @@ export default function App() {
         throw new Error(body.detail || "Draft generation failed.");
       }
 
-      setResult(await response.json());
+      const body = await response.json();
+      setStatus("Finalizing draft...");
+      await progress.done;
+      setResult(body);
+      setGenerationLog(progressTemplate.map((event) => ({ ...event, status: "completed" })));
       setActiveView("draft");
+      setFeedbackComment("");
+      setFeedbackStatus("");
       setStatus("");
+      window.setTimeout(() => setGenerationLog([]), 1800);
     } catch (caught) {
+      progress.cancel();
       setStatus("");
-      setError(caught instanceof Error ? caught.message : "Draft generation failed.");
+      const message = caught instanceof Error ? caught.message : "Draft generation failed. Check backend logs and required inputs.";
+      failRunningProgress(message);
+      setError(message);
     }
   }
 
@@ -779,12 +1085,393 @@ export default function App() {
     if (loaded.length) {
       setMode("custom");
       setSourceDocuments(loaded);
+      await classifyUploadedDocument(loaded[0]);
     }
   }
 
-  function submitAuth() {
-    setUser(authDraft);
-    navigateToPage("workspace");
+  async function classifyUploadedDocument(document: SourceDocument) {
+    setClassifierStatus("Classifying uploaded document before routing...");
+    try {
+      const response = await fetch("/api/classify-document", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ filename: document.name, content: document.content })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Document classification failed.");
+      }
+      if (body.practice_area && body.topic) {
+        setSelectedPracticeArea(body.practice_area);
+        setSelectedDocumentTopic(body.topic);
+      }
+      if (body.pack_id) {
+        setSelectedPackId(body.pack_id);
+      }
+      setClassifierStatus(`Classifier: ${body.topic || body.document_type} (${Math.round(Number(body.confidence || 0) * 100)}% confidence).`);
+    } catch (caught) {
+      setClassifierStatus(caught instanceof Error ? caught.message : "Document classification failed.");
+    }
+  }
+
+  async function saveLearnedDraft(title: string, content: string, learnMode: "add" | "update" = "add") {
+    if (!authToken) {
+      setLearningStatus("Log in before saving drafts for learning.");
+      return;
+    }
+    if (!content.trim()) {
+      setLearningStatus("No draft content available to learn from.");
+      return;
+    }
+    setLearningStatus(learnMode === "update" ? "Updating learned draft patterns..." : "Learning from draft and adding it to source examples...");
+    try {
+      const response = await fetch("/api/learned-drafts", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          title,
+          document_type: activeDocType,
+          content,
+          learn_mode: learnMode,
+          legal_country: providerSettings.legalCountry
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Could not save learned draft.");
+      }
+      setLearningStatus(`${body.message} ${body.chunks_saved} chunks saved.`);
+      await loadLearnedDrafts();
+    } catch (caught) {
+      setLearningStatus(caught instanceof Error ? caught.message : "Could not save learned draft.");
+    }
+  }
+
+  async function loadLearnedDrafts() {
+    if (!authToken) {
+      setLearningStatus("Log in to load learned drafts.");
+      return;
+    }
+    setLearningStatus("Loading learned drafts...");
+    try {
+      const response = await fetch("/api/learned-drafts", { headers: apiHeaders() });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Could not load learned drafts.");
+      }
+      const drafts = (body.drafts || []).map((draft: { name?: string; content?: string }, index: number) => ({
+        id: Date.now() + index,
+        name: draft.name || `learned_draft_${index + 1}.md`,
+        content: draft.content || ""
+      }));
+      setLearnedDrafts(drafts);
+      setLearningStatus(`${drafts.length} learned draft chunks loaded.`);
+    } catch (caught) {
+      setLearningStatus(caught instanceof Error ? caught.message : "Could not load learned drafts.");
+    }
+  }
+
+  async function learnUploadedDrafts(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) {
+      return;
+    }
+    for (const file of files) {
+      await saveLearnedDraft(file.name, await file.text(), "add");
+    }
+  }
+
+  function useLearnedDraftsAsSources() {
+    if (!learnedDrafts.length) {
+      setLearningStatus("Load learned drafts first.");
+      return;
+    }
+    setMode("custom");
+    setSourceDocuments(learnedDrafts);
+    setLearningStatus("Loaded learned drafts into source examples for the next generation.");
+  }
+
+  async function exportDraft(format: "md" | "docx" | "pdf") {
+    if (!result?.draft_markdown) {
+      setFeedbackStatus("Generate a draft before exporting.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/export/draft", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          filename: `${result.document_type}_${result.run_id}`,
+          draft_markdown: result.draft_markdown,
+          format
+        })
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || "Export failed.");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${result.document_type}_${result.run_id}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (caught) {
+      setFeedbackStatus(caught instanceof Error ? caught.message : "Export failed.");
+    }
+  }
+
+  async function submitAuth() {
+    setAuthStatus("Connecting to secure backend...");
+    try {
+      const signup = currentPage === "signup";
+      const response = await fetch(signup ? "/api/auth/register" : "/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          signup
+            ? {
+                full_name: authDraft.name,
+                email: authDraft.email,
+                password: authPassword,
+                account_type: authDraft.accountType,
+                role: authDraft.role,
+                firm_name: authFirmName
+              }
+            : {
+                email: authDraft.email,
+                password: authPassword
+              }
+        )
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Authentication failed.");
+      }
+      applyAuthenticatedUser(body.user, body.access_token);
+      setAuthPassword("");
+      setAuthStatus("");
+      navigateToPage("workspace");
+    } catch (caught) {
+      setAuthStatus(caught instanceof Error ? caught.message : "Authentication failed.");
+    }
+  }
+
+  function updateProviderSettings(patch: Partial<ProviderSettings>) {
+    setProviderSettings((current) => {
+      const next = { ...current, ...patch };
+      setLlmProvider(next.provider);
+      setModel(next.model);
+      return next;
+    });
+  }
+
+  async function verifyLegalSources() {
+    setLegalVerificationStatus("Checking official-source policy...");
+    setLegalVerification(null);
+    try {
+      const response = await fetch("/api/legal-verification", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          country: providerSettings.legalCountry,
+          legal_question: legalQuestion,
+          source_urls: legalSourceUrls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean)
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.detail || "Legal verification failed.");
+      }
+      setLegalVerification(body);
+      setLegalVerificationStatus(body.verification_status);
+    } catch (caught) {
+      setLegalVerificationStatus(caught instanceof Error ? caught.message : "Legal verification failed.");
+    }
+  }
+
+  async function saveProviderConfig() {
+    if (!authToken) {
+      setProviderSaveStatus("Log in before saving provider settings.");
+      return;
+    }
+    setProviderSaveStatus("Saving encrypted provider configuration...");
+    try {
+      const response = await fetch("/api/provider-config", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          provider: providerSettings.provider,
+          model: providerSettings.model,
+          base_url: providerSettings.baseUrl,
+          api_key: providerSettings.apiKey,
+          scope: user?.accountType === "firm" ? "firm" : "user",
+          legal_country: providerSettings.legalCountry
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Provider settings could not be saved.");
+      }
+      setProviderSaveStatus("Provider settings saved. API key is never returned to the browser.");
+      await loadProviderConfigs();
+    } catch (caught) {
+      setProviderSaveStatus(caught instanceof Error ? caught.message : "Provider settings could not be saved.");
+    }
+  }
+
+  async function loadProviderConfigs() {
+    if (!authToken) {
+      setProviderConfigs([]);
+      return;
+    }
+    try {
+      const response = await fetch("/api/provider-config", { headers: apiHeaders() });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Could not load provider settings.");
+      }
+      setProviderConfigs(body.configs || []);
+    } catch {
+      setProviderConfigs([]);
+    }
+  }
+
+  async function loadSubscription() {
+    if (!authToken) {
+      setSubscriptionInfo(null);
+      setSubscriptionStatus("Log in to see subscription and usage limits.");
+      return;
+    }
+    setSubscriptionStatus("Loading subscription...");
+    try {
+      const response = await fetch("/api/subscription", { headers: apiHeaders() });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Could not load subscription.");
+      }
+      setSubscriptionInfo({
+        plan: body.subscription.plan_code,
+        billing_cycle: body.subscription.billing_cycle,
+        monthly_limit: body.subscription.draft_limit,
+        used_count: body.usage.draft_generations,
+        remaining: Math.max(0, Number(body.subscription.draft_limit || 0) - Number(body.usage.draft_generations || 0))
+      });
+      setSubscriptionStatus("");
+    } catch (caught) {
+      setSubscriptionStatus(caught instanceof Error ? caught.message : "Could not load subscription.");
+    }
+  }
+
+  async function loadFirmAdminOverview() {
+    if (!authToken) {
+      setAdminOverview(null);
+      setAdminStatus("Log in with a firm account to use firm admin.");
+      return;
+    }
+    setAdminStatus("Loading firm admin workspace...");
+    try {
+      const response = await fetch("/api/firm-admin/overview", { headers: apiHeaders() });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Could not load firm admin workspace.");
+      }
+      setAdminOverview(body);
+      setAdminStatus("");
+    } catch (caught) {
+      setAdminOverview(null);
+      setAdminStatus(caught instanceof Error ? caught.message : "Could not load firm admin workspace.");
+    }
+  }
+
+  async function inviteFirmUser(email: string, role: UserAccount["role"]) {
+    setAdminStatus("Sending firm invitation...");
+    try {
+      const response = await fetch("/api/firm-admin/invite", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ email, role, message: "You have been invited to Legal AI Pattern Studio." })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Invitation failed.");
+      }
+      setAdminStatus(`Invitation queued for ${email}.`);
+    } catch (caught) {
+      setAdminStatus(caught instanceof Error ? caught.message : "Invitation failed.");
+    }
+  }
+
+  async function assignMatter(matter_title: string, assignee_email: string, document_type: string) {
+    setAdminStatus("Assigning matter...");
+    try {
+      const response = await fetch("/api/firm-admin/assign", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ matter_title, assignee_email, document_type, instructions: "Prepare draft for senior review." })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Assignment failed.");
+      }
+      setAdminStatus(`Matter assigned to ${assignee_email}.`);
+    } catch (caught) {
+      setAdminStatus(caught instanceof Error ? caught.message : "Assignment failed.");
+    }
+  }
+
+  async function loadHistory() {
+    setHistoryStatus("Loading saved review history...");
+    try {
+      const params = new URLSearchParams({ account_scope: accountScope, firm_id: firmId, user_email: userEmail });
+      const response = await fetch(`/api/history?${params.toString()}`, { headers: apiHeaders() });
+      if (!response.ok) {
+        throw new Error("Could not load history.");
+      }
+      const body = await response.json();
+      setHistoryRecords([...(body.positive || []), ...(body.negative || [])]);
+      setHistoryStatus("");
+    } catch (caught) {
+      setHistoryStatus(caught instanceof Error ? caught.message : "Could not load history.");
+    }
+  }
+
+  async function saveFeedback(sentiment: "positive" | "negative") {
+    if (!result) {
+      return;
+    }
+    setFeedbackStatus("Saving feedback...");
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          run_id: result.run_id,
+          sentiment,
+          comment: feedbackComment,
+          document_type: result.document_type,
+          draft_markdown: result.draft_markdown || "",
+          case_data: caseData,
+          qa_score: result.final_qa_score,
+          reviewer: userEmail,
+          account_scope: accountScope,
+          firm_id: firmId,
+          user_email: userEmail
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Feedback could not be saved.");
+      }
+      const body = await response.json();
+      setHistoryRecords((current) => [body.record, ...current]);
+      setFeedbackStatus(sentiment === "positive" ? "Saved to Positive History." : "Saved to Negative History.");
+      setFeedbackComment("");
+    } catch (caught) {
+      setFeedbackStatus(caught instanceof Error ? caught.message : "Feedback could not be saved.");
+    }
   }
 
   return (
@@ -801,7 +1488,9 @@ export default function App() {
         copy={copy}
         onNavigate={navigateToPage}
         onSignOut={() => {
+          setAuthToken("");
           setUser(null);
+          sessionStorage.removeItem("legal_ai_access_token");
           navigateToPage("login");
         }}
       />
@@ -811,6 +1500,11 @@ export default function App() {
             mode={currentPage}
             authDraft={authDraft}
             setAuthDraft={setAuthDraft}
+            authPassword={authPassword}
+            setAuthPassword={setAuthPassword}
+            authFirmName={authFirmName}
+            setAuthFirmName={setAuthFirmName}
+            authStatus={authStatus}
             submitAuth={submitAuth}
             switchMode={navigateToPage}
           />
@@ -821,7 +1515,12 @@ export default function App() {
               setMode("built-in");
               navigateToPage("workspace");
             }}
+            onUseTopic={openCatalogTopic}
           />
+        ) : currentPage === "history" ? (
+          <HistoryPage records={historyRecords} status={historyStatus} onRefresh={loadHistory} />
+        ) : currentPage === "profile" ? (
+          <ProfilePage user={user} setUser={setUser} authToken={authToken} apiHeaders={apiHeaders} />
         ) : currentPage === "settings" ? (
           <SettingsPage
             user={user}
@@ -829,17 +1528,45 @@ export default function App() {
             setTheme={setTheme}
             appLanguage={appLanguage}
             setAppLanguage={setAppLanguage}
-            llmProvider={llmProvider}
-            setLlmProvider={setLlmProvider}
-            model={model}
-            setModel={setModel}
+            providerSettings={providerSettings}
+            updateProviderSettings={updateProviderSettings}
+            legalQuestion={legalQuestion}
+            setLegalQuestion={setLegalQuestion}
+            legalSourceUrls={legalSourceUrls}
+            setLegalSourceUrls={setLegalSourceUrls}
+            legalVerification={legalVerification}
+            legalVerificationStatus={legalVerificationStatus}
+            verifyLegalSources={verifyLegalSources}
+            saveProviderConfig={saveProviderConfig}
+            providerSaveStatus={providerSaveStatus}
+            providerConfigs={providerConfigs}
+            subscriptionInfo={subscriptionInfo}
+            subscriptionStatus={subscriptionStatus}
+            onRefreshSubscription={loadSubscription}
           />
+        ) : currentPage === "admin" ? (
+          <FirmAdminPage
+            user={user}
+            overview={adminOverview}
+            status={adminStatus}
+            onRefresh={loadFirmAdminOverview}
+            onInvite={inviteFirmUser}
+            onAssign={assignMatter}
+          />
+        ) : currentPage === "contact" ? (
+          <ContactPage user={user} authToken={authToken} apiHeaders={apiHeaders} />
         ) : currentPage === "about" ? (
           <AboutPage />
         ) : currentPage === "careers" ? (
           <CareersPage />
         ) : currentPage === "privacy" ? (
           <PrivacyPolicyPage />
+        ) : currentPage === "terms" ? (
+          <LegalInfoPage kind="terms" />
+        ) : currentPage === "impressum" ? (
+          <LegalInfoPage kind="impressum" />
+        ) : currentPage === "gdpr" ? (
+          <LegalInfoPage kind="gdpr" />
         ) : (
           <>
       <section className="topbar">
@@ -901,6 +1628,22 @@ export default function App() {
                   <span>Upload Markdown or text samples</span>
                   <input multiple type="file" accept=".md,.txt" onChange={loadSourceFiles} />
                 </label>
+                <div className="learning-panel">
+                  <div>
+                    <strong>Learn from firm drafts</strong>
+                    <p className="field-note">Upload prior drafts so the agents can classify, chunk, retrieve, and reuse firm-specific drafting patterns.</p>
+                  </div>
+                  <label className="file-drop slim">
+                    <span>Add learned drafts</span>
+                    <input multiple type="file" accept=".md,.txt" onChange={learnUploadedDrafts} />
+                  </label>
+                  <div className="button-row">
+                    <button className="secondary" onClick={loadLearnedDrafts}>Load learned drafts</button>
+                    <button className="secondary" onClick={useLearnedDraftsAsSources}>Use learned drafts as sources</button>
+                  </div>
+                </div>
+                {classifierStatus && <p className="status">{classifierStatus}</p>}
+                {learningStatus && <p className="status">{learningStatus}</p>}
                 {sourceDocuments.map((doc) => (
                   <article className="source-card" key={doc.id}>
                     <input value={doc.name} onChange={(event) => updateSourceDocument(doc.id, { name: event.target.value })} />
@@ -955,12 +1698,27 @@ export default function App() {
                 Model
                 <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="llama3.1:8b" />
               </label>
+              <label>
+                Draft language
+                <select value={providerSettings.outputLanguage} onChange={(event) => updateProviderSettings({ outputLanguage: event.target.value as AppLanguage })}>
+                  {appLanguages.map((language) => (
+                    <option value={language.code} key={language.code}>{language.label}</option>
+                  ))}
+                </select>
+              </label>
             </div>
             <button className="primary" disabled={Boolean(status)} onClick={generateDraft}>
               {status ? "Generating..." : "Generate draft"}
             </button>
             {status && <p className="status">{status}</p>}
             {error && <p className="error">{error}</p>}
+            {generationLog.length > 0 && (
+              <ExecutionLogPanel
+                title={status ? "Live Agent Progress" : "Last Run Log"}
+                events={generationLog}
+                compact
+              />
+            )}
           </div>
         </aside>
 
@@ -995,23 +1753,31 @@ export default function App() {
                     <span>{result.document_type.replaceAll("_", " ")}</span>
                     <strong>Final QA {Math.round(result.final_qa_score * 100)}%</strong>
                   </header>
+                  <div className="export-actions">
+                    <button className="secondary small" onClick={() => exportDraft("md")}>Download Markdown</button>
+                    <button className="secondary small" onClick={() => exportDraft("docx")}>Download DOCX</button>
+                    <button className="secondary small" onClick={() => exportDraft("pdf")}>Download PDF</button>
+                  </div>
                   <pre>{result.draft_markdown || "Draft artifact was not returned by the backend."}</pre>
                 </article>
               )}
 
               {activeView === "trace" && (
-                <div className="timeline">
-                  {result.steps.map((step, index) => (
-                    <article className="timeline-item" key={`${step.name}-${index}`}>
-                      <div className="step-index">{index + 1}</div>
-                      <div>
-                        <h3>{step.name}</h3>
-                        <p>{step.purpose}</p>
-                        <span>{step.output_summary}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                <>
+                  <ExecutionLogPanel title="Execution Log" events={result.execution_log || generationLog} />
+                  <div className="timeline">
+                    {result.steps.map((step, index) => (
+                      <article className="timeline-item" key={`${step.name}-${index}`}>
+                        <div className="step-index">{index + 1}</div>
+                        <div>
+                          <h3>{step.name}</h3>
+                          <p>{step.purpose}</p>
+                          <span>{step.output_summary}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </>
               )}
 
               {activeView === "review" && (
@@ -1019,12 +1785,40 @@ export default function App() {
                   <h2>Lawyer Review Packet</h2>
                   <p>Status: {result.human_review?.status || "pending_lawyer_review"}</p>
                   <p>Trace: {result.trace_dir}</p>
+                  {result.legal_validation && (
+                    <div className="verification-result">
+                      <strong>Automatic legal citation validation: {result.legal_validation.status}</strong>
+                      <p>Country: {result.legal_validation.country}</p>
+                      <p>Detected citations: {result.legal_validation.detected_citations.join(", ") || "None detected"}</p>
+                      <small>{result.legal_validation.instruction}</small>
+                    </div>
+                  )}
                   <ul>
                     {(result.human_review?.review_reasons || [
                       "Generated legal document requires qualified lawyer review.",
                       "Grounding and citations should be checked before filing."
                     ]).map((reason) => <li key={reason}>{reason}</li>)}
                   </ul>
+                  <div className="feedback-box">
+                    <h3>Reviewer Feedback</h3>
+                    <p>Save the generated output with your review note. Positive feedback improves approved-history examples; negative feedback is separated for failure analysis.</p>
+                    <textarea
+                      value={feedbackComment}
+                      onChange={(event) => setFeedbackComment(event.target.value)}
+                      placeholder="Add reviewer comments, missing facts, legal concerns, or approval notes..."
+                      rows={4}
+                    />
+                    <div className="feedback-actions">
+                      <button className="primary" onClick={() => saveFeedback("positive")}>Save positive feedback</button>
+                      <button className="danger-button" onClick={() => saveFeedback("negative")}>Save negative feedback</button>
+                    </div>
+                    <div className="feedback-actions">
+                      <button className="secondary" onClick={() => saveLearnedDraft(`${result.document_type}_${result.run_id}`, result.draft_markdown || "", "add")}>Learn from this draft</button>
+                      <button className="secondary" onClick={() => saveLearnedDraft(`${result.document_type}_${result.run_id}`, result.draft_markdown || "", "update")}>Update learned draft</button>
+                    </div>
+                    {feedbackStatus && <p className="status">{feedbackStatus}</p>}
+                    {learningStatus && <p className="status">{learningStatus}</p>}
+                  </div>
                 </article>
               )}
 
@@ -1052,6 +1846,84 @@ function NeuralBackdrop() {
       <span className="neural-node node-d" />
     </div>
   );
+}
+
+function ExecutionLogPanel({
+  title,
+  events,
+  compact = false
+}: {
+  title: string;
+  events: ExecutionLogEvent[];
+  compact?: boolean;
+}) {
+  const normalizedEvents = normalizeExecutionEvents(events);
+  const visibleEvents = compact ? compactThinkingEvents(normalizedEvents) : normalizedEvents;
+  if (compact) {
+    const activeEvent = normalizedEvents.find((event) => event.status === "running") || normalizedEvents.find((event) => event.status === "failed" || event.status === "blocked") || normalizedEvents.findLast((event) => event.status === "completed") || normalizedEvents[0];
+    if (!activeEvent) {
+      return null;
+    }
+    return (
+      <article className="process-indicator">
+        <span className={`process-dot ${activeEvent.status}`} />
+        <strong>{activeEvent.agent}</strong>
+        <small>{activeEvent.phase}</small>
+      </article>
+    );
+  }
+  return (
+    <article className="execution-log">
+      <div className="section-title">
+        <h2>{title}</h2>
+        <span>{compact ? "thinking" : `${visibleEvents.length} events`}</span>
+      </div>
+      <div className="execution-list">
+        {visibleEvents.map((event, index) => (
+          <div className={`execution-event ${event.status}`} key={`${event.agent}-${event.phase}-${index}`}>
+            <div className="execution-marker" />
+            <div>
+              <div className="execution-heading">
+                <strong>{event.agent}</strong>
+                <span>{event.phase} | {event.status}</span>
+              </div>
+              <p>{event.message}</p>
+              {!compact && event.details && Object.keys(event.details).length > 0 && (
+                <details>
+                  <summary>Details</summary>
+                  <pre>{JSON.stringify(event.details, null, 2)}</pre>
+                </details>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function normalizeExecutionEvents(events: ExecutionLogEvent[]): ExecutionLogEvent[] {
+  const latestTerminalByAgent = new Map<string, number>();
+  events.forEach((event, index) => {
+    if (["completed", "blocked", "failed"].includes(String(event.status))) {
+      latestTerminalByAgent.set(`${event.agent}:${event.phase}`, index);
+    }
+  });
+  return events.map((event, index) => {
+    const terminalIndex = latestTerminalByAgent.get(`${event.agent}:${event.phase}`);
+    if (event.status === "running" && terminalIndex != null && terminalIndex > index) {
+      return { ...event, status: "completed", message: `${event.message} Completed.` };
+    }
+    return event;
+  });
+}
+
+function compactThinkingEvents(events: ExecutionLogEvent[]): ExecutionLogEvent[] {
+  const activeIndex = events.findIndex((event) => event.status === "running" || event.status === "failed" || event.status === "blocked");
+  if (activeIndex >= 0) {
+    return events.slice(Math.max(0, activeIndex - 2), Math.min(events.length, activeIndex + 3));
+  }
+  return events.slice(-3);
 }
 
 function AppNavbar({
@@ -1091,9 +1963,11 @@ function AppNavbar({
       <nav>
         <button className={currentPage === "workspace" ? "active" : ""} onClick={() => onNavigate("workspace")}>{copy.workspace}</button>
         <button className={currentPage === "library" ? "active" : ""} onClick={() => onNavigate("library")}>{copy.samples}</button>
+        <button className={currentPage === "history" ? "active" : ""} onClick={() => onNavigate("history")}>{copy.history}</button>
         <button className={currentPage === "settings" ? "active" : ""} onClick={() => onNavigate("settings")}>{copy.settings}</button>
+        {user?.accountType === "firm" && <button className={currentPage === "admin" ? "active" : ""} onClick={() => onNavigate("admin")}>{copy.admin}</button>}
+        <button className={currentPage === "contact" ? "active" : ""} onClick={() => onNavigate("contact")}>{copy.contact}</button>
         <button className={currentPage === "about" ? "active" : ""} onClick={() => onNavigate("about")}>{copy.about}</button>
-        <button className={currentPage === "careers" ? "active" : ""} onClick={() => onNavigate("careers")}>{copy.careers}</button>
       </nav>
       <div className="navbar-actions">
         <button className="icon-button" onClick={cycleTheme} title={`Theme: ${theme}`}>
@@ -1106,10 +1980,10 @@ function AppNavbar({
         </div>
         {user ? (
           <>
-            <div className="nav-account">
-              <span>{displayRole(user.role)}</span>
+            <button className="nav-account" onClick={() => onNavigate("profile")} type="button">
               <strong>{user.name}</strong>
-            </div>
+              <span>{displayRole(user.role)}</span>
+            </button>
             <button className="secondary small" onClick={onSignOut}>{copy.signOut}</button>
           </>
         ) : (
@@ -1156,39 +2030,51 @@ function LanguagePicker({
   onChange: (language: AppLanguage) => void;
   compact?: boolean;
 }) {
-  return (
-    <div className={compact ? "language-picker compact" : "language-picker"} aria-label="App language">
-      {appLanguages.map((language) => (
-        <button
-          className={value === language.code ? "active" : ""}
-          key={language.code}
-          onClick={() => onChange(language.code)}
-          title={language.label}
-          type="button"
-        >
-          <FlagIcon className={language.flagClass} />
-          {!compact && <span>{language.label}</span>}
-        </button>
-      ))}
-    </div>
-  );
-}
+  const selected = appLanguages.find((language) => language.code === value) || appLanguages[1];
 
-function FlagIcon({ className }: { className: string }) {
-  return <span className={`flag-icon ${className}`} aria-hidden="true" />;
+  return (
+    <label className={compact ? "language-select-control compact" : "language-select-control"}>
+      <span className="sr-only">App language</span>
+      <span className="language-select-inner">
+        <img className="flag-image" src={selected.flagSrc} alt="" aria-hidden="true" />
+        <select
+          aria-label="App language"
+          title={`Language: ${selected.label}`}
+          value={value}
+          onChange={(event) => onChange(event.target.value as AppLanguage)}
+        >
+          {appLanguages.map((language) => (
+            <option key={language.code} value={language.code}>
+              {compact ? language.shortLabel : language.label}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  );
 }
 
 function AuthPage({
   mode,
   authDraft,
   setAuthDraft,
+  authPassword,
+  setAuthPassword,
+  authFirmName,
+  setAuthFirmName,
+  authStatus,
   submitAuth,
   switchMode
 }: {
   mode: "login" | "signup";
   authDraft: UserAccount;
   setAuthDraft: (value: UserAccount) => void;
-  submitAuth: () => void;
+  authPassword: string;
+  setAuthPassword: (value: string) => void;
+  authFirmName: string;
+  setAuthFirmName: (value: string) => void;
+  authStatus: string;
+  submitAuth: () => void | Promise<void>;
   switchMode: (page: "login" | "signup") => void;
 }) {
   const signup = mode === "signup";
@@ -1225,7 +2111,7 @@ function AuthPage({
         </label>
         <label>
           Password
-          <input type="password" placeholder="Prototype password field" />
+          <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Enter password" />
         </label>
         {signup && (
           <>
@@ -1248,21 +2134,28 @@ function AuthPage({
             </div>
             <label>
               Firm name
-              <input placeholder="Example Legal Partners LLP" />
+              <input value={authFirmName} onChange={(event) => setAuthFirmName(event.target.value)} placeholder="Example Legal Partners LLP" />
             </label>
           </>
         )}
         <p className="field-note">
-          Prototype only: this uses local mock authentication. Production would add SSO, password policy, RBAC,
+          Authentication is handled by the backend. Production hardening adds SSO, password policy, RBAC,
           firm tenancy, audit logs, and encrypted matter storage.
         </p>
+        {authStatus && <p className={authStatus.toLowerCase().includes("failed") ? "error" : "status"}>{authStatus}</p>}
         <button className="primary" onClick={submitAuth}>{signup ? "Create account" : "Log in"}</button>
       </article>
     </section>
   );
 }
 
-function DocumentLibraryPage({ onUsePack }: { onUsePack: (packId: string) => void }) {
+function DocumentLibraryPage({
+  onUsePack,
+  onUseTopic
+}: {
+  onUsePack: (packId: string) => void;
+  onUseTopic: (area: string, topic: string) => void;
+}) {
   const totalDocuments = legalDocumentCatalog.reduce((total, group) => total + group.documents.length, 0);
   return (
     <section className="library-page">
@@ -1348,12 +2241,262 @@ function DocumentLibraryPage({ onUsePack }: { onUsePack: (packId: string) => voi
               <span>{group.documents.length} types</span>
             </div>
             <div className="document-chip-list">
-              {group.documents.map((document) => <span key={document}>{document}</span>)}
+              {group.documents.map((document) => {
+                const summary = topicFieldSummary(group.area, document);
+                const runnable = Boolean(runnableDocumentMap[`${group.area}::${document}`]);
+                return (
+                  <button
+                    className={runnable ? "document-chip runnable" : "document-chip roadmap"}
+                    key={document}
+                    onClick={() => onUseTopic(group.area, document)}
+                    title={`${summary.requiredLabel}: ${summary.required.join(", ")} | ${summary.optionalLabel}: ${summary.optional.join(", ")}`}
+                    type="button"
+                  >
+                    {document}
+                    <span className="chip-tooltip">
+                      <strong>{runnable ? "Runnable sample" : "Custom roadmap schema"}</strong>
+                      <em>{summary.requiredLabel}</em>
+                      <small>{summary.required.join(", ")}</small>
+                      <em>{summary.optionalLabel}</em>
+                      <small>{summary.optional.join(", ")}</small>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </article>
         ))}
       </section>
 
+    </section>
+  );
+}
+
+function topicFieldSummary(area: string, topic: string) {
+  const packId = runnableDocumentMap[`${area}::${topic}`] || "";
+  const backendDocType = builtInPacks.find((pack) => pack.id === packId)?.backendDocType || "custom_legal_documents";
+  const fields = fieldsFor(backendDocType, packId);
+  const required = fields.filter((field) => field.required).map((field) => field.label);
+  const optional = fields.filter((field) => !field.required).map((field) => field.label);
+  return {
+    requiredLabel: "Required fields",
+    optionalLabel: "Optional fields",
+    required: required.length ? required : ["Matter or case number", "Client / claimant", "Matter summary"],
+    optional: optional.length ? optional : ["Supporting evidence", "Reviewer notes", "Requested relief"]
+  };
+}
+
+function HistoryPage({
+  records,
+  status,
+  onRefresh
+}: {
+  records: FeedbackRecord[];
+  status: string;
+  onRefresh: () => void;
+}) {
+  const positive = records.filter((record) => record.sentiment === "positive");
+  const negative = records.filter((record) => record.sentiment === "negative");
+  return (
+    <section className="history-page">
+      <article className="library-hero">
+        <p className="eyebrow">Review history</p>
+        <h1>Saved generated outputs are grouped by lawyer feedback.</h1>
+        <p>
+          Positive history can become approved precedent candidates. Negative history is kept separately so the team can
+          inspect missing facts, weak retrieval, prompt failures, and legal-review concerns.
+        </p>
+        <button className="secondary" onClick={onRefresh}>Refresh history</button>
+        {status && <p className="status">{status}</p>}
+      </article>
+      <section className="history-grid">
+        <HistoryColumn title="Positive History" records={positive} empty="No positive feedback saved yet." />
+        <HistoryColumn title="Negative History" records={negative} empty="No negative feedback saved yet." negative />
+      </section>
+    </section>
+  );
+}
+
+function HistoryColumn({
+  title,
+  records,
+  empty,
+  negative = false
+}: {
+  title: string;
+  records: FeedbackRecord[];
+  empty: string;
+  negative?: boolean;
+}) {
+  return (
+    <article className={negative ? "history-column negative" : "history-column"}>
+      <div className="section-title">
+        <h2>{title}</h2>
+        <span>{records.length} saved</span>
+      </div>
+      {!records.length && <p className="field-note">{empty}</p>}
+      {records.map((record) => (
+        <div className="history-item" key={record.id}>
+          <div>
+            <strong>{record.document_type.replaceAll("_", " ") || "Generated draft"}</strong>
+            <span>{new Date(record.created_at).toLocaleString()} | Run {record.run_id.slice(-7)}</span>
+          </div>
+          <p>{record.comment || "No reviewer comment provided."}</p>
+          <small>QA {record.qa_score == null ? "n/a" : `${Math.round(record.qa_score * 100)}%`} | Reviewer {record.reviewer}</small>
+          <details>
+            <summary>Preview saved draft</summary>
+            <pre>{record.draft_markdown || "No draft text saved."}</pre>
+          </details>
+        </div>
+      ))}
+    </article>
+  );
+}
+
+function ProfilePage({
+  user,
+  setUser,
+  authToken,
+  apiHeaders
+}: {
+  user: UserAccount | null;
+  setUser: (user: UserAccount | null) => void;
+  authToken: string;
+  apiHeaders: (extra?: Record<string, string>) => Record<string, string>;
+}) {
+  const [profileDraft, setProfileDraft] = useState<UserAccount>(user || defaultUser);
+  const [profileStatus, setProfileStatus] = useState("");
+  const [passwordEmail, setPasswordEmail] = useState(user?.email || "");
+
+  if (!user) {
+    return (
+      <section className="content-page">
+        <article className="library-hero">
+          <p className="eyebrow">Profile</p>
+          <h1>Log in to manage your account profile.</h1>
+          <p>Profile, password, email verification, and firm visibility settings require an authenticated account.</p>
+        </article>
+      </section>
+    );
+  }
+
+  async function saveProfile() {
+    if (!authToken) {
+      setProfileStatus("Log in before saving profile settings.");
+      return;
+    }
+    setProfileStatus("Saving profile...");
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(profileDraft)
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Profile could not be saved.");
+      }
+      setUser(body.user);
+      setProfileDraft(body.user);
+      setProfileStatus("Profile saved in PostgreSQL.");
+    } catch (caught) {
+      setProfileStatus(caught instanceof Error ? caught.message : "Profile could not be saved.");
+    }
+  }
+
+  async function sendEmailVerification() {
+    setProfileStatus("Requesting verification email...");
+    try {
+      const response = await fetch("/api/auth/request-email-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profileDraft.email })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Verification email could not be requested.");
+      }
+      setProfileStatus(`Verification email queued for ${profileDraft.email}.`);
+    } catch (caught) {
+      setProfileStatus(caught instanceof Error ? caught.message : "Verification email could not be requested.");
+    }
+  }
+
+  async function sendPasswordReset() {
+    const email = passwordEmail || profileDraft.email;
+    setProfileStatus("Requesting password reset email...");
+    try {
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Password reset could not be requested.");
+      }
+      setProfileStatus(`Password reset email queued for ${email}.`);
+    } catch (caught) {
+      setProfileStatus(caught instanceof Error ? caught.message : "Password reset could not be requested.");
+    }
+  }
+
+  return (
+    <section className="profile-page">
+      <article className="library-hero profile-hero">
+        <p className="eyebrow">User profile</p>
+        <h1>{user.name}</h1>
+        <p className="profile-designation">{displayRole(user.role)} | {user.accountType === "firm" ? "Firm account" : "Individual account"}</p>
+        <p>Manage profile details, email verification, password-change verification, and account visibility.</p>
+      </article>
+      <section className="settings-grid">
+        <article className="settings-card">
+          <h2>Profile Details</h2>
+          <div className="two-col">
+            <label>
+              Full name
+              <input value={profileDraft.name} onChange={(event) => setProfileDraft({ ...profileDraft, name: event.target.value })} />
+            </label>
+            <label>
+              Email
+              <input value={profileDraft.email} onChange={(event) => setProfileDraft({ ...profileDraft, email: event.target.value })} />
+            </label>
+            <label>
+              Account type
+              <select value={profileDraft.accountType} onChange={(event) => setProfileDraft({ ...profileDraft, accountType: event.target.value as UserAccount["accountType"] })}>
+                <option value="individual">Individual</option>
+                <option value="firm">Firm</option>
+              </select>
+            </label>
+            <label>
+              Designation
+              <select value={profileDraft.role} onChange={(event) => setProfileDraft({ ...profileDraft, role: event.target.value as UserAccount["role"] })}>
+                <option value="senior_lawyer">Senior lawyer</option>
+                <option value="junior_lawyer">Junior lawyer</option>
+                <option value="paralegal">Paralegal</option>
+              </select>
+            </label>
+          </div>
+          <button className="primary" onClick={saveProfile}>Save profile</button>
+        </article>
+        <article className="settings-card">
+          <h2>Security</h2>
+          <div className="security-actions">
+            <div>
+              <strong>Email verification</strong>
+              <p className="field-note">Verify account ownership before sharing firm templates or reviewer history.</p>
+              <button className="secondary" onClick={sendEmailVerification}>Send verification email</button>
+            </div>
+            <div>
+              <strong>Change password</strong>
+              <p className="field-note">Password changes require email verification before the new password is accepted.</p>
+              <input value={passwordEmail} onChange={(event) => setPasswordEmail(event.target.value)} placeholder="Email for password verification" />
+              <button className="secondary" onClick={sendPasswordReset}>Verify by email</button>
+            </div>
+          </div>
+          {profileStatus && <p className="status">{profileStatus}</p>}
+        </article>
+      </section>
     </section>
   );
 }
@@ -1364,20 +2507,42 @@ function SettingsPage({
   setTheme,
   appLanguage,
   setAppLanguage,
-  llmProvider,
-  setLlmProvider,
-  model,
-  setModel
+  providerSettings,
+  updateProviderSettings,
+  legalQuestion,
+  setLegalQuestion,
+  legalSourceUrls,
+  setLegalSourceUrls,
+  legalVerification,
+  legalVerificationStatus,
+  verifyLegalSources,
+  saveProviderConfig,
+  providerSaveStatus,
+  providerConfigs,
+  subscriptionInfo,
+  subscriptionStatus,
+  onRefreshSubscription
 }: {
   user: UserAccount | null;
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
   appLanguage: AppLanguage;
   setAppLanguage: (language: AppLanguage) => void;
-  llmProvider: string;
-  setLlmProvider: (provider: string) => void;
-  model: string;
-  setModel: (model: string) => void;
+  providerSettings: ProviderSettings;
+  updateProviderSettings: (patch: Partial<ProviderSettings>) => void;
+  legalQuestion: string;
+  setLegalQuestion: (value: string) => void;
+  legalSourceUrls: string;
+  setLegalSourceUrls: (value: string) => void;
+  legalVerification: LegalVerificationResult | null;
+  legalVerificationStatus: string;
+  verifyLegalSources: () => void;
+  saveProviderConfig: () => void | Promise<void>;
+  providerSaveStatus: string;
+  providerConfigs: Array<{ id: string; provider: string; model: string; base_url: string; scope: string; has_api_key: boolean }>;
+  subscriptionInfo: { plan: string; billing_cycle: string; monthly_limit: number; used_count: number; remaining: number } | null;
+  subscriptionStatus: string;
+  onRefreshSubscription: () => void | Promise<void>;
 }) {
   return (
     <section className="settings-page">
@@ -1413,7 +2578,7 @@ function SettingsPage({
           <div className="two-col">
             <label>
               Provider
-              <select value={llmProvider} onChange={(event) => setLlmProvider(event.target.value)}>
+              <select value={providerSettings.provider} onChange={(event) => updateProviderSettings({ provider: event.target.value })}>
                 <option value="mock">Mock LLM</option>
                 <option value="ollama">Ollama</option>
                 <option value="openai-compatible">OpenAI-compatible</option>
@@ -1421,10 +2586,98 @@ function SettingsPage({
             </label>
             <label>
               Model
-              <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="llama3.1:8b" />
+              <input value={providerSettings.model} onChange={(event) => updateProviderSettings({ model: event.target.value })} placeholder="llama3.1:8b" />
+            </label>
+            <label>
+              API key
+              <input
+                type="password"
+                value={providerSettings.apiKey}
+                onChange={(event) => updateProviderSettings({ apiKey: event.target.value })}
+                placeholder="Only sent to backend for this request"
+              />
+            </label>
+            <label>
+              Base URL
+              <input
+                value={providerSettings.baseUrl}
+                onChange={(event) => updateProviderSettings({ baseUrl: event.target.value })}
+                placeholder="https://api.openai.com/v1 or http://localhost:11434"
+              />
             </label>
           </div>
-          <p className="field-note">The workspace generation form uses these same provider values.</p>
+          <div className="button-row">
+            <button className="primary" onClick={saveProviderConfig}>Save encrypted provider config</button>
+          </div>
+          {providerSaveStatus && <p className="status">{providerSaveStatus}</p>}
+          {providerConfigs.length > 0 && (
+            <div className="saved-config-list">
+              {providerConfigs.map((config) => (
+                <div key={config.id}>
+                  <strong>{config.provider} / {config.model || "default model"}</strong>
+                  <span>{config.scope} scope | key {config.has_api_key ? "stored encrypted" : "not stored"} | {config.base_url || "default URL"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="field-note">API keys are encrypted server-side and only metadata is returned to the browser.</p>
+        </article>
+        <article className="settings-card">
+          <h2>Subscription and Usage</h2>
+          {subscriptionInfo ? (
+            <div className="usage-panel">
+              <Metric label="Plan" value={`${subscriptionInfo.plan} / ${subscriptionInfo.billing_cycle}`} />
+              <Metric label="Monthly limit" value={`${subscriptionInfo.monthly_limit}`} />
+              <Metric label="Used" value={`${subscriptionInfo.used_count}`} />
+              <Metric label="Remaining" value={`${subscriptionInfo.remaining}`} strong />
+            </div>
+          ) : (
+            <p className="field-note">{subscriptionStatus || "Log in to see your draft quota."}</p>
+          )}
+          {subscriptionStatus && subscriptionInfo && <p className="status">{subscriptionStatus}</p>}
+          <div className="button-row">
+            <button className="secondary" onClick={onRefreshSubscription}>Refresh usage</button>
+            <button className="secondary">Stripe checkout placeholder</button>
+            <button className="secondary">Paddle checkout placeholder</button>
+          </div>
+          <p className="field-note">Backend enforces 20 free drafts/month and 50 paid drafts/month before draft generation. Payment buttons need live Stripe or Paddle credentials before production use.</p>
+        </article>
+        <article className="settings-card">
+          <h2>Official Legal Verification</h2>
+          <div className="two-col">
+            <label>
+              Legal country
+              <select value={providerSettings.legalCountry} onChange={(event) => updateProviderSettings({ legalCountry: event.target.value })}>
+                {legalCountries.map((country) => <option key={country.code} value={country.code}>{country.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Draft output language
+              <select value={providerSettings.outputLanguage} onChange={(event) => updateProviderSettings({ outputLanguage: event.target.value as AppLanguage })}>
+                {appLanguages.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Verification question
+              <input value={legalQuestion} onChange={(event) => setLegalQuestion(event.target.value)} />
+            </label>
+          </div>
+          <label>
+            Official source URLs
+            <textarea value={legalSourceUrls} onChange={(event) => setLegalSourceUrls(event.target.value)} rows={5} />
+          </label>
+          <button className="secondary" onClick={verifyLegalSources}>Verify official-source policy</button>
+          {legalVerificationStatus && <p className="status">{legalVerificationStatus}</p>}
+          {legalVerification && (
+            <div className="verification-result">
+              <strong>Allowed official domains for {legalVerification.country}</strong>
+              <p>{legalVerification.allowed_domains.join(", ")}</p>
+              {legalVerification.rejected_sources.length > 0 && (
+                <p className="error">Rejected non-official sources: {legalVerification.rejected_sources.map((source) => source.url).join(", ")}</p>
+              )}
+              <small>{legalVerification.instruction}</small>
+            </div>
+          )}
         </article>
       </section>
       <AccessPanel user={user} />
@@ -1443,6 +2696,246 @@ function SettingsPage({
         </div>
       </article>
     </section>
+  );
+}
+
+function ContactPage({
+  user,
+  authToken,
+  apiHeaders
+}: {
+  user: UserAccount | null;
+  authToken: string;
+  apiHeaders: (extra?: Record<string, string>) => Record<string, string>;
+}) {
+  const [contactEmail, setContactEmail] = useState(user?.email || "");
+  const [contactSubject, setContactSubject] = useState("Product support request");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactStatus, setContactStatus] = useState("");
+  const [chatCategory, setChatCategory] = useState<"chatbot" | "complaint" | "support">("chatbot");
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string; ticket?: string }>>([
+    {
+      role: "assistant",
+      text: "Ask me how to use the drafting workspace, or report a complaint and I will create a support ticket."
+    }
+  ]);
+
+  async function sendContact() {
+    setContactStatus("Creating support ticket...");
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_email: contactEmail || user?.email || "guest@example.com",
+          subject: contactSubject,
+          message: contactMessage,
+          category: "support"
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Ticket could not be created.");
+      }
+      setContactStatus(`Ticket ${body.ticket.ticket_no} created and routed to the development team.`);
+      setContactMessage("");
+    } catch (caught) {
+      setContactStatus(caught instanceof Error ? caught.message : "Ticket could not be created.");
+    }
+  }
+
+  async function sendChat() {
+    if (!chatMessage.trim()) {
+      return;
+    }
+    const outgoing = chatMessage.trim();
+    setChatLog((current) => [...current, { role: "user", text: outgoing }]);
+    setChatMessage("");
+    try {
+      const response = await fetch("/api/chatbot/message", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          user_email: user?.email || contactEmail || "guest@example.com",
+          message: outgoing,
+          category: chatCategory
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Chatbot request failed.");
+      }
+      setChatLog((current) => [
+        ...current,
+        { role: "assistant", text: body.reply, ticket: body.ticket?.ticket_no }
+      ]);
+    } catch (caught) {
+      setChatLog((current) => [
+        ...current,
+        { role: "assistant", text: caught instanceof Error ? caught.message : "Chatbot request failed." }
+      ]);
+    }
+  }
+
+  return (
+    <section className="contact-page">
+      <article className="library-hero">
+        <p className="eyebrow">Contact us</p>
+        <h1>Reach support, report issues, or ask the AI assistant how to use the app.</h1>
+        <p>
+          Support requests and chatbot complaints are saved as tickets so a representative or development team can
+          review the record later.
+        </p>
+      </article>
+      <section className="contact-grid">
+        <article className="settings-card">
+          <h2>Support Form</h2>
+          <label>
+            Email
+            <input value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} placeholder="name@firm.com" />
+          </label>
+          <label>
+            Subject
+            <input value={contactSubject} onChange={(event) => setContactSubject(event.target.value)} />
+          </label>
+          <label>
+            Message
+            <textarea value={contactMessage} onChange={(event) => setContactMessage(event.target.value)} rows={7} />
+          </label>
+          <button className="primary" onClick={sendContact}>Create ticket</button>
+          {contactStatus && <p className="status">{contactStatus}</p>}
+        </article>
+        <article className="settings-card chatbot-card">
+          <h2>AI Help Chatbot</h2>
+          <div className="chat-log">
+            {chatLog.map((item, index) => (
+              <div className={item.role === "assistant" ? "chat-message assistant" : "chat-message user"} key={`${item.role}-${index}`}>
+                <p>{item.text}</p>
+                {item.ticket && <small>Ticket: {item.ticket}</small>}
+              </div>
+            ))}
+          </div>
+          <div className="two-col">
+            <label>
+              Request type
+              <select value={chatCategory} onChange={(event) => setChatCategory(event.target.value as "chatbot" | "complaint" | "support")}>
+                <option value="chatbot">How-to guidance</option>
+                <option value="support">Support question</option>
+                <option value="complaint">Complaint</option>
+              </select>
+            </label>
+            <label>
+              Message
+              <input value={chatMessage} onChange={(event) => setChatMessage(event.target.value)} onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void sendChat();
+                }
+              }} placeholder="How do I generate a draft?" />
+            </label>
+          </div>
+          <button className="secondary" onClick={sendChat}>Send to assistant</button>
+          {!authToken && <p className="field-note">Guest chats are saved with the provided email; logged-in users keep tickets in their account scope.</p>}
+        </article>
+      </section>
+    </section>
+  );
+}
+
+function FirmAdminPage({
+  user,
+  overview,
+  status,
+  onRefresh,
+  onInvite,
+  onAssign
+}: {
+  user: UserAccount | null;
+  overview: Record<string, unknown> | null;
+  status: string;
+  onRefresh: () => void | Promise<void>;
+  onInvite: (email: string, role: UserAccount["role"]) => void | Promise<void>;
+  onAssign: (matter: string, email: string, documentType: string) => void | Promise<void>;
+}) {
+  const [inviteEmail, setInviteEmail] = useState("junior.associate@example.com");
+  const [inviteRole, setInviteRole] = useState<UserAccount["role"]>("junior_lawyer");
+  const [matterTitle, setMatterTitle] = useState("DPS-2026-014");
+  const [assigneeEmail, setAssigneeEmail] = useState("junior.associate@example.com");
+  const [documentType, setDocumentType] = useState("Dismissal Protection Suit");
+  const users = (overview?.users as Array<Record<string, string>> | undefined) || [];
+  const queue = (overview?.review_queue as Array<Record<string, string>> | undefined) || [];
+  const assignments = (overview?.assignments as Array<Record<string, string>> | undefined) || [];
+
+  if (!user) {
+    return (
+      <section className="content-page">
+        <article className="library-hero">
+          <p className="eyebrow">Firm admin</p>
+          <h1>Log in with a firm account to manage users, assignments, and review queues.</h1>
+        </article>
+      </section>
+    );
+  }
+
+  return (
+    <section className="settings-page">
+      <article className="library-hero">
+        <p className="eyebrow">Firm admin</p>
+        <h1>Manage firm users, matter assignments, senior review, and junior visibility.</h1>
+        <p>{String(overview?.visibility_rule || "Senior users can review junior work; juniors only see assigned matters.")}</p>
+        <button className="secondary" onClick={onRefresh}>Refresh admin data</button>
+        {status && <p className="status">{status}</p>}
+      </article>
+      <section className="settings-grid">
+        <article className="settings-card">
+          <h2>Invite User</h2>
+          <div className="two-col">
+            <label>Email<input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></label>
+            <label>Role
+              <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as UserAccount["role"])}>
+                <option value="junior_lawyer">Junior lawyer</option>
+                <option value="paralegal">Paralegal</option>
+                <option value="senior_lawyer">Senior lawyer</option>
+              </select>
+            </label>
+          </div>
+          <button className="primary" onClick={() => onInvite(inviteEmail, inviteRole)}>Send invite</button>
+        </article>
+        <article className="settings-card">
+          <h2>Assign Matter</h2>
+          <label>Matter<input value={matterTitle} onChange={(event) => setMatterTitle(event.target.value)} /></label>
+          <div className="two-col">
+            <label>Assignee<input value={assigneeEmail} onChange={(event) => setAssigneeEmail(event.target.value)} /></label>
+            <label>Document type<input value={documentType} onChange={(event) => setDocumentType(event.target.value)} /></label>
+          </div>
+          <button className="primary" onClick={() => onAssign(matterTitle, assigneeEmail, documentType)}>Assign to junior</button>
+        </article>
+      </section>
+      <section className="admin-grid">
+        <AdminList title="Firm Users" rows={users} />
+        <AdminList title="Senior Review Queue" rows={queue} />
+        <AdminList title="Assignments" rows={assignments} />
+      </section>
+    </section>
+  );
+}
+
+function AdminList({ title, rows }: { title: string; rows: Array<Record<string, string>> }) {
+  return (
+    <article className="settings-card">
+      <div className="section-title">
+        <h2>{title}</h2>
+        <span>{rows.length} records</span>
+      </div>
+      {!rows.length && <p className="field-note">No records yet.</p>}
+      {rows.map((row, index) => (
+        <div className="admin-row" key={`${title}-${index}`}>
+          {Object.entries(row).map(([key, value]) => (
+            <span key={key}><strong>{key.replaceAll("_", " ")}</strong>{value}</span>
+          ))}
+        </div>
+      ))}
+    </article>
   );
 }
 
@@ -1532,11 +3025,68 @@ function PrivacyPolicyPage() {
   );
 }
 
+function LegalInfoPage({ kind }: { kind: "terms" | "impressum" | "gdpr" }) {
+  const content = {
+    terms: {
+      eyebrow: "Terms of service",
+      title: "Legal AI drafts are assistance tools and require qualified lawyer review before use.",
+      items: [
+        ["No legal advice by the platform", "The system drafts and validates support material, but final legal judgment remains with qualified lawyers."],
+        ["Human approval required", "Generated drafts, citations, and retrieved sources must be reviewed before filing, sending, or relying on them."],
+        ["Acceptable use", "Users must not upload unlawful data, bypass access controls, or use another country law setting to mislead clients."],
+        ["Auditability", "Generation, feedback, provider settings, MCP calls, and support tickets are logged for security and quality review."]
+      ]
+    },
+    impressum: {
+      eyebrow: "Impressum / legal notice",
+      title: "Production deployment should publish responsible operator, address, contact, and regulatory details.",
+      items: [
+        ["Operator", "Replace this prototype notice with the legal entity operating the service."],
+        ["Contact", "Provide support email, business address, and responsible person for legal notices."],
+        ["Professional rules", "For German law firm use, list relevant bar association and professional regulations where applicable."],
+        ["Dispute resolution", "Add consumer or business dispute-resolution statements required for the deployment jurisdiction."]
+      ]
+    },
+    gdpr: {
+      eyebrow: "GDPR and data processing",
+      title: "Legal drafting data needs tenant isolation, minimization, retention rules, and processor controls.",
+      items: [
+        ["Data categories", "Matter facts, legal documents, generated drafts, QA traces, feedback, account records, and support tickets."],
+        ["Lawful basis", "Production deployment must define controller/processor roles and lawful basis for each tenant workflow."],
+        ["Data subject rights", "Support access, correction, export, deletion, retention holds, and audit logs."],
+        ["Subprocessors", "List LLM providers, hosting, email, payment, analytics, and storage subprocessors with DPAs."]
+      ]
+    }
+  }[kind];
+
+  return (
+    <section className="content-page">
+      <article className="library-hero">
+        <p className="eyebrow">{content.eyebrow}</p>
+        <h1>{content.title}</h1>
+      </article>
+      <section className="catalog-grid">
+        {content.items.map(([title, text]) => (
+          <article className="catalog-card" key={title}>
+            <h2>{title}</h2>
+            <p>{text}</p>
+          </article>
+        ))}
+      </section>
+    </section>
+  );
+}
+
 function AppFooter({ copy, onNavigate }: { copy: Record<string, string>; onNavigate: (page: Page) => void }) {
   return (
     <footer className="app-footer">
       <span>Legal AI Pattern Drafting Studio</span>
       <button className="footer-link" onClick={() => onNavigate("privacy")}>{copy.privacy}</button>
+      <button className="footer-link" onClick={() => onNavigate("terms")}>{copy.terms}</button>
+      <button className="footer-link" onClick={() => onNavigate("impressum")}>{copy.impressum}</button>
+      <button className="footer-link" onClick={() => onNavigate("gdpr")}>{copy.gdpr}</button>
+      <button className="footer-link" onClick={() => onNavigate("contact")}>{copy.contact}</button>
+      <button className="footer-link" onClick={() => onNavigate("careers")}>{copy.careers}</button>
       <span>{copy.lawyerReviewRequired}</span>
       <span>PII-aware drafting, traceable QA, firm access controls</span>
     </footer>
