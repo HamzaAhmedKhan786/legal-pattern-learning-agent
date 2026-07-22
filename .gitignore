@@ -222,4 +222,8 @@ credentials.json
 !legal_pattern_system/outputs/**/*.json
 !legal_pattern_system/evaluation/*.json
 !legal_pattern_system/web/frontend/package.json
+!legal_pattern_system/web/frontend/package-lock.json
+legal_pattern_system/web/frontend/node_modules/
+legal_pattern_system/web/frontend/dist/
+Legal document AI icon.png
 legal_pattern_system/outputs/runs/

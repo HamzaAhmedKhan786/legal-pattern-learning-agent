@@ -24,6 +24,16 @@ This prototype:
 - documents the production architecture, tradeoffs, and answers to the three
   additional challenge questions.
 
+## App Screenshots
+
+Workspace:
+
+![Workspace dashboard](screenshots/workspace.png)
+
+Sample library:
+
+![Sample library](screenshots/library.png)
+
 ## Current Scope vs. Production
 
 Current prototype:
