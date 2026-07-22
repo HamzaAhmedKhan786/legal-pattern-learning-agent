@@ -22,6 +22,7 @@ legal_pattern_system/RESULTS.md
 legal_pattern_system/docs/architecture.md
 legal_pattern_system/docs/design_decisions.md
 legal_pattern_system/docs/qa_score_comparison.md
+legal_pattern_system/docs/v2_agentic_corrections.md
 ```
 
 The runnable scripts are in:
@@ -41,6 +42,14 @@ Run the full learning/generation/QA pipeline:
 ```bash
 python scripts\run_pipeline.py --doc-type dismissal_protection_suits
 python scripts\run_pipeline.py --doc-type claims_for_damages
+```
+
+Run the corrected LLM-style agentic pipeline with planning, retrieval,
+structured mock-LLM outputs, critique/revision, and trace artifacts:
+
+```bash
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
+python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
 ```
 
 Generate a draft from a saved template and example case-data JSON:
@@ -68,6 +77,7 @@ Outputs are written to:
 legal_pattern_system/outputs/templates/
 legal_pattern_system/outputs/generated_documents/
 legal_pattern_system/outputs/qa_reports/
+legal_pattern_system/outputs/runs/
 ```
 
 ## Overview

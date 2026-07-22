@@ -90,3 +90,35 @@ class QaReport:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class RetrievalChunk:
+    chunk_id: str
+    source_path: str
+    heading: str
+    text: str
+    score: float
+
+
+@dataclass(frozen=True)
+class AgentStep:
+    name: str
+    purpose: str
+    input_summary: str
+    output_summary: str
+    artifact_path: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentRunReport:
+    run_id: str
+    document_type: str
+    steps: list[AgentStep]
+    retrieval_coverage: float
+    initial_qa_score: float
+    final_qa_score: float
+    trace_dir: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

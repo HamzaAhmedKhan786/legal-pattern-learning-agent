@@ -220,3 +220,4 @@ credentials.json
 # Keep JSON artifacts for the legal pattern learning solution.
 !legal_pattern_system/examples/*.json
 !legal_pattern_system/outputs/**/*.json
+legal_pattern_system/outputs/runs/

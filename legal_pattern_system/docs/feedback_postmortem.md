@@ -371,3 +371,23 @@ Main lesson:
 > the prompt asks for an agentic system. The prototype must demonstrate the AI
 > behavior, not only describe where it would go.
 
+## Corrections Added After This Feedback
+
+The repository now includes a v2-style agentic path that addresses the main
+missing signals:
+
+- `src/legal_pattern_system/llm_client.py` adds an LLM client protocol and mock
+  structured-output provider.
+- `prompts/` contains planning, pattern extraction, grounded generation, QA
+  critique, and revision prompts.
+- `src/legal_pattern_system/retrieval.py` adds retrieval over parsed source
+  sections.
+- `src/legal_pattern_system/agentic_orchestrator.py` adds a planning ->
+  retrieval -> grounded draft -> critique -> revision -> trace loop.
+- `scripts/run_agentic_pipeline.py` runs the corrected workflow.
+- `outputs/runs/` stores per-agent trace artifacts.
+- `tests/test_agentic_pipeline.py` verifies retrieval and trace generation.
+
+This does not turn the project into a production LLM system, but it corrects the
+main demo gap: the project now contains an executable agentic workflow rather
+than only documentation describing where LLMs could fit later.

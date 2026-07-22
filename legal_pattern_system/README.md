@@ -161,6 +161,23 @@ Run the full pipeline for claims for damages:
 python scripts\run_pipeline.py --doc-type claims_for_damages
 ```
 
+Run the corrected LLM-style agentic pipeline:
+
+```bash
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
+python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
+```
+
+This agentic path adds the missing AI-engineering layer:
+
+- planning step,
+- prompt templates in `prompts/`,
+- retrieval grounding over parsed source sections,
+- structured mock-LLM outputs,
+- draft critique,
+- revision decision,
+- run traces in `outputs/runs/`.
+
 Run tests:
 
 ```bash
@@ -217,6 +234,7 @@ The pipeline writes:
 - `outputs/templates/<doc_type>_template.json`
 - `outputs/generated_documents/<doc_type>_generated.md`
 - `outputs/qa_reports/<doc_type>_qa.json`
+- `outputs/runs/<doc_type>_<run_id>/`
 
 ## Design Notes
 
@@ -227,6 +245,7 @@ See:
 - `docs/additional_questions.md`
 - `docs/loom_script.md`
 - `docs/qa_score_comparison.md`
+- `docs/v2_agentic_corrections.md`
 - `RESULTS.md`
 
 ## Future Production Suggestions

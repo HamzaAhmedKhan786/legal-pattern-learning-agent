@@ -115,3 +115,28 @@ For a production version, I would add:
 - PII controls and tenant isolation,
 - evaluation against lawyer edit distance and approval/rejection outcomes,
 - observability for cost, latency, confidence, and failure modes.
+
+## V2 Agentic Correction After Feedback
+
+After feedback that the first submission was too deterministic, I added a
+separate LLM-style agentic path:
+
+```bash
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
+python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
+```
+
+This corrected path adds:
+
+- prompt templates in `prompts/`,
+- an `LlmClient` protocol and mock structured-output provider,
+- retrieval grounding over parsed source sections,
+- a planning step,
+- draft critique and revision decision,
+- per-run trace artifacts under `outputs/runs/`,
+- tests for retrieval and trace generation.
+
+This still runs without external API keys, but the control flow now mirrors a
+real LLM-agent system more closely. A production version would replace the mock
+client with a real model provider and add schema validation, retries, token/cost
+tracking, and model-quality evaluation.
