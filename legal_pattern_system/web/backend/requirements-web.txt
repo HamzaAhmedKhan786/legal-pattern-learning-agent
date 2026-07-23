@@ -5,3 +5,7 @@ python-multipart
 psycopg[binary]
 cryptography
 redis
+
+# Optional production graph workflow:
+# langgraph
+# langchain-core

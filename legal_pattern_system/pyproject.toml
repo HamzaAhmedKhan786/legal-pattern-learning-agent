@@ -4,3 +4,9 @@ version = "0.1.0"
 description = "Proof-of-concept agentic legal document pattern learning system"
 requires-python = ">=3.10"
 dependencies = []
+
+[project.optional-dependencies]
+langgraph = [
+  "langgraph>=1.2,<2",
+  "langchain-core>=1.5,<2",
+]

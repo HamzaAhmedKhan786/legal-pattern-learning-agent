@@ -1,53 +1,157 @@
-# Backend Scaffold
+# Backend
 
-Recommended production backend: **FastAPI**.
+The backend is a FastAPI application that exposes authentication, drafting,
+feedback, admin, export, legal verification, support, and production-integration
+scaffolding for Legal AI Pattern Drafting Studio.
 
-Why FastAPI:
-
-- Python-native and fits the existing codebase.
-- Type-hint driven request/response models.
-- OpenAPI docs and client generation.
-- Good fit for async upload and agent-run endpoints.
-
-Run in production only after installing web dependencies:
+## Run Locally
 
 ```bash
+cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\web\backend
 pip install -r requirements-web.txt
-uvicorn app:app --reload
+set DATABASE_URL=postgresql://postgres:your_password@localhost:5432/legal_pattern_system
+set APP_ENCRYPTION_KEY=your_fernet_key
+python ..\..\scripts\init_database.py
+python -m uvicorn app:app --host 127.0.0.1 --port 8001
 ```
 
-Prototype endpoints:
+Health check:
 
-- `POST /api/auth/register` creates an individual or firm user in PostgreSQL.
-- `POST /api/auth/login` returns a bearer session token.
-- `GET /api/auth/me` validates a session token.
-- `POST /api/auth/request-email-verification` sends verification email through SMTP settings.
-- `POST /api/auth/request-password-reset` sends password reset email through SMTP settings.
-- `POST /generate` runs the agentic legal-drafting workflow.
-- `GET /api/sample-library` returns the saved 73-template reference catalog.
-- `GET /api/agents/status` shows active agents and LLM provider options.
-- `POST /api/legal-verification` checks that legal source URLs match the selected country's official-source allowlist.
-- `POST /api/legal-web-fetch` fetches only allowlisted official legal URLs and audits rejected sources.
-- `POST /api/feedback` saves lawyer feedback for positive/negative history.
-- `GET /api/history?account_scope=firm&firm_id=...` returns reusable firm history.
-- `GET /api/history?account_scope=individual&user_email=...` returns personal history.
+```text
+GET http://127.0.0.1:8001/health
+```
 
-PostgreSQL setup:
+## Important Environment Variables
+
+```text
+DATABASE_URL=postgresql://user:password@host:5432/legal_pattern_system
+APP_ENCRYPTION_KEY=<valid Fernet key>
+REDIS_URL=redis://localhost:6379/0
+SMTP_HOST=smtp.provider.com
+SMTP_PORT=587
+SMTP_USERNAME=your_smtp_user
+SMTP_PASSWORD=your_smtp_password
+SMTP_FROM=noreply@yourdomain.com
+OPENAI_API_KEY=optional_api_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OLLAMA_BASE_URL=http://localhost:11434
+DOCUMENT_CLASSIFIER_COMMAND=python C:\path\to\classifier\classify.py --json
+STRIPE_SECRET_KEY=sk_live_or_test_key
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Local `DocClassifier` adapter example:
+
+```powershell
+$env:DOCUMENT_CLASSIFIER_COMMAND='python C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\scripts\classify_with_docclassifier.py --project-root C:\Users\DELL\Documents\Tasks\JUPUS\DocClassifier'
+```
+
+Safer production form:
+
+```powershell
+$env:DOCUMENT_CLASSIFIER_COMMAND='["python","C:\\Users\\DELL\\Documents\\Tasks\\JUPUS\\ai-challenge\\legal_pattern_system\\scripts\\classify_with_docclassifier.py","--project-root","C:\\Users\\DELL\\Documents\\Tasks\\JUPUS\\DocClassifier"]'
+```
+
+Generate a Fernet key:
 
 ```bash
-set DATABASE_URL=postgresql://legal_ai:change-me@localhost:5432/legal_pattern_system
-python legal_pattern_system/scripts/init_database.py
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-If `DATABASE_URL` is not set, the backend stays in local JSON fallback mode for
-demo feedback history. Auth endpoints require PostgreSQL.
+## Endpoint Groups
 
-Reference sample data is generated with:
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/request-email-verification`
+- `POST /api/auth/request-password-reset`
+
+Drafting:
+
+- `POST /generate`
+- `POST /api/classify-document`
+- `POST /api/classify-documents`
+- `GET /api/agents/status`
+- `GET /api/sample-library`
+- `POST /api/export/markdown`
+- `POST /api/export/docx`
+- `POST /api/export/pdf`
+
+History and learning:
+
+- `POST /api/feedback`
+- `GET /api/history`
+- `POST /api/learned-drafts`
+- `GET /api/learned-drafts`
+
+Profile, settings, and provider vault:
+
+- `GET /api/profile`
+- `POST /api/profile`
+- `POST /api/provider-config`
+- `GET /api/provider-config`
+
+Firm admin:
+
+- `GET /api/admin/overview`
+- `POST /api/admin/invite-user`
+- `POST /api/admin/assign-matter`
+
+Legal validation and MCP:
+
+- `POST /api/legal-verification`
+- `POST /api/legal-web-fetch`
+- `POST /api/mcp/tool-call`
+
+Support:
+
+- `POST /api/contact`
+- `POST /api/support/chat`
+
+## Backend Flow
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Agents as Agent Orchestrator
+    participant LLM as LLM Provider
+
+    UI->>API: Authenticated draft request
+    API->>DB: Validate user, role, usage
+    API->>Agents: Run planning, retrieval, drafting, QA
+    Agents->>LLM: Structured prompts
+    Agents->>DB: Save draft, trace, feedback placeholders
+    API-->>UI: Draft response and execution events
+```
+
+## Database
+
+Schema:
+
+```text
+web/backend/schema.sql
+```
+
+Initialize:
 
 ```bash
-python legal_pattern_system/scripts/build_sample_library.py
+python ..\..\scripts\init_database.py
 ```
 
-Provider keys are accepted per request for prototype testing only. A production deployment should move API keys to a
-tenant secrets vault, encrypt provider configuration, and block legal verification unless the country and official
-source policy are explicitly selected.
+Production database guidance is in:
+
+- `docs/production_backend_rag_plan.md`
+- `docs/production_integration_guide.md`
+
+## Production Notes
+
+- Use PostgreSQL in production, not JSON fallback.
+- Store raw uploads and large exports in object storage.
+- Use Redis for distributed rate limiting and long-running job status.
+- Encrypt provider API keys with `APP_ENCRYPTION_KEY`.
+- Validate legal citations only through approved official-source allowlists.
+- Audit every MCP call before returning results to an agent.

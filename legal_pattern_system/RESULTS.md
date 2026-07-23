@@ -96,12 +96,16 @@ The final pass improved five areas:
 
 ## Current Limitations
 
-- The prototype is deterministic and does not call an LLM.
-- Generated legal language is intentionally conservative and template-like.
-- It does not perform real legal research or jurisdiction validation.
-- It does not parse PDF, DOCX, or scanned documents yet, though parser adapters
-  are designed for those future inputs.
-- QA is a prototype heuristic, not a substitute for lawyer review.
+- The default provider is still `mock` so reviewers can run the project without
+  credentials, but the same agentic path can use Ollama or an OpenAI-compatible
+  API provider.
+- Generated legal language is intentionally conservative and requires lawyer
+  review.
+- Official-law validation currently uses country allowlist and audit scaffolding;
+  deeper live legal retrieval and citation-text matching still need production
+  integration.
+- PDF, DOCX, and scanned-document ingestion are planned production adapters.
+- QA is a prototype quality gate, not a legal-validity guarantee.
 
 ## Production Improvements
 
@@ -139,6 +143,17 @@ This corrected path adds:
 
 This still runs without external API keys in mock mode, but can also use local
 Llama through Ollama or an API-key based OpenAI-compatible provider. The control
-flow now mirrors a real LLM-agent system more closely. A production version
-would add stricter schema validation, retries, token/cost tracking, and
-model-quality evaluation.
+flow now mirrors a real LLM-agent system more closely.
+
+The web application extends this into a product-style flow with auth, profile
+settings, firm admin screens, provider configuration, language selection, export
+buttons, live agent status, positive/negative history, support tickets, and
+production scaffolding for PostgreSQL, Redis, SMTP, payments, MCP, and official
+law validation.
+
+See:
+
+- `docs/architecture.md`
+- `docs/system_design.md`
+- `docs/application_flow.md`
+- `docs/production_integration_guide.md`

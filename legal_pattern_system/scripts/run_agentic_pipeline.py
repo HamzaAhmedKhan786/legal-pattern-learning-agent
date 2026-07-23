@@ -20,6 +20,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from legal_pattern_system.agentic_orchestrator import AgenticLegalPatternOrchestrator
+from legal_pattern_system.langgraph_orchestrator import LangGraphLegalPatternOrchestrator
 from legal_pattern_system.llm_client import create_llm_client
 
 
@@ -36,6 +37,7 @@ def main() -> None:
     parser.add_argument("--model", help="Model name for ollama or openai-compatible providers.")
     parser.add_argument("--base-url", help="Provider base URL. Ollama default: http://localhost:11434. OpenAI-compatible default: https://api.openai.com/v1.")
     parser.add_argument("--api-key", help="API key for openai-compatible provider. Prefer OPENAI_API_KEY env var.")
+    parser.add_argument("--workflow", choices=["custom", "langgraph"], default="custom", help="Use the default custom orchestrator or optional LangGraph state-machine workflow.")
     args = parser.parse_args()
 
     document_dir = ROOT.parent / "sample_documents" / args.doc_type
@@ -43,13 +45,15 @@ def main() -> None:
     case_data = json.loads(case_data_path.read_text(encoding="utf-8"))
 
     llm = create_llm_client(args.llm, model=args.model, base_url=args.base_url, api_key=args.api_key)
-    report = AgenticLegalPatternOrchestrator(llm=llm).run(
+    orchestrator = LangGraphLegalPatternOrchestrator(llm=llm) if args.workflow == "langgraph" else AgenticLegalPatternOrchestrator(llm=llm)
+    report = orchestrator.run(
         document_dir=document_dir,
         case_data=case_data,
         output_root=ROOT / "outputs",
     )
 
     print(f"LLM provider: {args.llm}")
+    print(f"Workflow: {args.workflow}")
     if args.model:
         print(f"Model: {args.model}")
     print(f"Agentic run id: {report.run_id}")

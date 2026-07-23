@@ -1,195 +1,314 @@
 # Architecture
 
-## Goal
+This document explains the technical architecture of Legal AI Pattern Drafting
+Studio from prototype to production. The design keeps the assessment pipeline
+easy to run while showing how the same responsibilities scale into a real
+multi-tenant legal drafting product.
 
-Learn document patterns from multiple prior legal documents, turn those patterns
-into reusable templates, generate new firm-specific drafts, and validate the
-result before lawyer review.
+## Architecture Goals
 
-## Prototype Boundary
+- Learn drafting patterns from approved prior documents.
+- Separate fixed firm language from matter-specific variables.
+- Retrieve grounding material from firm examples and official law sources.
+- Generate drafts in the requested output language.
+- Validate citations, completeness, consistency, and missing facts.
+- Keep lawyers in control through review, feedback, and approval flows.
+- Preserve traceability for every agent decision, prompt, source, and output.
+- Support individual users and firms with senior/junior access controls.
 
-The provided samples are Markdown, so the prototype uses a lightweight Markdown
-parser. The system is intentionally designed around a parser adapter interface:
+## System Context
+
+```mermaid
+flowchart TB
+    Browser["User Browser"]
+    Lawyer["Lawyer / Junior / Admin"]
+    Frontend["React + TypeScript Frontend"]
+    Backend["FastAPI Backend"]
+    Database[("PostgreSQL")]
+    Redis[("Redis")]
+    ObjectStore[("Object Storage")]
+    VectorStore[("Vector Store / pgvector")]
+    LLM["Mock, Ollama, or OpenAI-Compatible LLM"]
+    SMTP["SMTP Provider"]
+    Payments["Stripe or Paddle"]
+    OfficialLaw["Official Legal Sources"]
+    MCP["MCP Servers"]
+
+    Lawyer --> Browser
+    Browser --> Frontend
+    Frontend --> Backend
+    Backend --> Database
+    Backend --> Redis
+    Backend --> ObjectStore
+    Backend --> VectorStore
+    Backend --> LLM
+    Backend --> SMTP
+    Backend --> Payments
+    Backend --> OfficialLaw
+    Backend --> MCP
+```
+
+## Layered Architecture
+
+```mermaid
+flowchart TB
+    subgraph Presentation["Presentation Layer"]
+        UI["Workspace, Library, History, Profile, Admin, Support"]
+        Forms["Case Facts, Uploads, Language, Provider Settings"]
+        Viewer["Draft Viewer, Process Timeline, Export Buttons"]
+    end
+
+    subgraph API["API Layer"]
+        Gateway["Request Gateway"]
+        Auth["Auth and Session Service"]
+        RBAC["Firm RBAC Policy"]
+        Usage["Subscription and Usage Service"]
+        Provider["Provider Vault Service"]
+        Export["Export Service"]
+    end
+
+    subgraph Agentic["Agentic Workflow Layer"]
+        Plan["PlanningAgent"]
+        Classify["ClassifierAgent"]
+        Parse["DocumentParserAgent"]
+        Pattern["LLMPatternAgent"]
+        Retrieve["RetrievalAgent"]
+        Draft["GroundedDraftingAgent"]
+        Legal["LegalSourceVerifierAgent"]
+        Critique["CritiqueAgent"]
+        Revise["RevisionAgent"]
+        Human["HumanReviewAgent"]
+    end
+
+    subgraph Persistence["Persistence Layer"]
+        PG[("PostgreSQL")]
+        Obj[("Object Storage")]
+        Vec[("Vector Index")]
+        Audit[("Audit Log")]
+    end
+
+    UI --> Gateway
+    Forms --> Gateway
+    Viewer --> Gateway
+
+    Gateway --> Auth
+    Auth --> RBAC
+    RBAC --> Usage
+    Usage --> Provider
+    Provider --> Plan
+
+    Plan --> Classify
+    Classify --> Parse
+    Parse --> Pattern
+    Pattern --> Retrieve
+    Retrieve --> Draft
+    Draft --> Legal
+    Legal --> Critique
+    Critique --> Revise
+    Revise --> Human
+
+    Auth --> PG
+    Usage --> PG
+    Provider --> PG
+    Parse --> Obj
+    Retrieve --> Vec
+    Human --> Audit
+```
+
+## Agent Responsibilities
+
+| Agent | Responsibility | Current State | Production Upgrade |
+|---|---|---|---|
+| `RequestGateway` | Normalize request metadata and create run ID | Implemented in backend flow | Add idempotency keys and async jobs |
+| `ProviderRouter` | Select mock, Ollama, or API provider | Implemented | Add cost policy, fallback, health checks |
+| `PlanningAgent` | Decide workflow steps and prompt versions | Implemented | Add dynamic tool planning and retries |
+| `ClassifierAgent` | Classify uploaded document type | Heuristic and command hook | Connect pretrained classifier |
+| `DocumentParserAgent` | Parse Markdown/source examples | Implemented | Add PDF, DOCX, OCR, layout parsing |
+| `LLMPatternAgent` | Learn sections, variables, fixed language | Implemented with structured output | Add lawyer approval and template versions |
+| `RetrievalAgent` | Retrieve grounding source chunks | Lexical prototype | Add embeddings, reranker, tenant filters |
+| `GroundedDraftingAgent` | Generate draft from facts, template, chunks | Implemented | Add stronger model and clause locking |
+| `LegalSourceVerifierAgent` | Validate country-specific official law sources | Allowlist gate scaffold | Add live official search and citation matching |
+| `CritiqueAgent` | Review quality, missing facts, risk | Implemented | Add rubric and lawyer-scored eval set |
+| `RevisionAgent` | Revise based on critique | Implemented | Add redline diff and version comparison |
+| `HumanReviewAgent` | Persist review packet and feedback | Implemented as review workflow scaffold | Add senior approval queue and redlines |
+
+## Orchestration Options
+
+The project has two orchestration paths:
+
+| Workflow | File | Purpose |
+|---|---|---|
+| Custom orchestrator | `src/legal_pattern_system/agentic_orchestrator.py` | Default assessment/MVP path with no extra dependencies |
+| LangGraph orchestrator | `src/legal_pattern_system/langgraph_orchestrator.py` | Optional production-style state-machine workflow |
+
+The LangGraph path keeps each major agent step as an explicit graph node:
 
 ```mermaid
 flowchart LR
-    A["Markdown / PDF / DOCX / OCR Source"] --> B["Parser Adapter"]
-    B --> C["Normalized LegalDocument"]
-    C --> D["Pattern Detector Agent"]
-    D --> E["Template Builder Agent"]
-    E --> F["Document Generator Agent"]
-    F --> G["QA Agent"]
-    G --> H["Lawyer Review"]
+    Init["initialize"] --> Plan["plan"]
+    Plan --> Learn["learn_template"]
+    Learn --> Pattern["extract_patterns"]
+    Pattern --> Retrieve["retrieve"]
+    Retrieve --> Draft["draft"]
+    Draft --> Critique["critique"]
+    Critique --> Revise["revise"]
+    Revise --> Finalize["finalize"]
 ```
 
-This keeps the current implementation simple while leaving a clean path to
-production ingestion with layout-aware PDF parsing, DOCX parsing, OCR, or a
-document-intelligence service.
+Run it with:
 
-## Agents
+```bash
+pip install ".[langgraph]"
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --workflow langgraph
+```
+
+Future LangGraph upgrades should add conditional edges for blocked security
+checks, weak retrieval, missing facts, failed citation verification, and human
+review interrupts.
+
+## Data Architecture
 
 ```mermaid
-flowchart TD
-    O["Orchestrator Agent"] --> P["Document Parser Agent"]
-    O --> D["Pattern Detector Agent"]
-    O --> T["Template Builder Agent"]
-    O --> G["Document Generator Agent"]
-    O --> Q["QA Agent"]
-    P --> S["LegalDocument objects"]
-    D --> R["Patterns, variables, citations"]
-    T --> L["LearnedTemplate JSON"]
-    G --> M["Generated Markdown draft"]
-    Q --> N["QA report and score"]
+erDiagram
+    FIRMS ||--o{ USERS : has
+    USERS ||--o{ USER_SESSIONS : owns
+    FIRMS ||--o{ MATTERS : owns
+    USERS ||--o{ MATTERS : assigned
+    MATTERS ||--o{ DOCUMENT_ASSETS : contains
+    DOCUMENT_ASSETS ||--o{ RAG_CHUNKS : parsed_into
+    MATTERS ||--o{ AGENT_RUNS : runs
+    AGENT_RUNS ||--o{ GENERATED_DRAFTS : creates
+    GENERATED_DRAFTS ||--o{ REVIEW_FEEDBACK : receives
+    FIRMS ||--o{ PROVIDER_CONFIGS : configures
+    USERS ||--o{ PROVIDER_CONFIGS : configures
+    AGENT_RUNS ||--o{ OFFICIAL_SOURCE_AUDITS : verifies
+    USERS ||--o{ SUPPORT_TICKETS : opens
 ```
 
-### Document Parser Agent
+PostgreSQL stores structured data and references. Large files and exports should
+move to object storage in production. Embeddings should move to `pgvector` or a
+dedicated vector database when retrieval grows.
 
-Input: file path.
+## Multi-Tenant Access Model
 
-Output: normalized `LegalDocument` with title, metadata, parties, headings,
-sections, and raw text.
+```mermaid
+flowchart LR
+    Senior["Senior Lawyer"]
+    Junior["Junior Lawyer"]
+    Individual["Individual User"]
 
-Current implementation: `MarkdownDocumentParser`.
+    Senior --> FirmMatter["All firm matters"]
+    Senior --> ReviewQueue["Review queue"]
+    Senior --> AssignedJunior["Assigned junior work"]
 
-Production extension: `PdfLayoutParser`, `DocxParser`, `OcrDocumentParser`.
+    Junior --> OwnMatter["Own matters"]
+    Junior --> AssignedMatter["Senior-assigned matters"]
+    Junior -. blocked .-> SeniorPrivate["Senior private data"]
 
-### Pattern Detector Agent
+    Individual --> Personal["Personal drafts and history"]
+```
 
-Input: multiple `LegalDocument` objects of the same document family.
+Rules:
 
-Output:
+- Senior lawyers can review firm-level work and assigned junior work.
+- Juniors cannot see senior private drafts unless explicitly assigned.
+- Individual users remain isolated from firm tenants.
+- Retrieval must always filter by tenant, matter, user role, and data policy.
 
-- stable vs variable metadata fields,
-- stable vs variable party fields,
-- required vs optional sections,
-- repeated language variants,
-- legal citations that require careful review.
+## LLM And Tool Boundary
 
-The prototype uses deterministic rules so results are inspectable. In production,
-this would be combined with embeddings, layout features, and LLM structured
-outputs for semantic clause classification.
+The LLM should propose structured outputs. The backend remains responsible for
+validation, policy, storage, and audit.
 
-### Template Builder Agent
+```mermaid
+flowchart LR
+    Agent["Agent Prompt"] --> LLM["LLM Response"]
+    LLM --> Schema["Schema Validation"]
+    Schema --> Policy["Policy and RBAC Check"]
+    Policy --> Tools["Approved Tool Calls"]
+    Tools --> Audit["Audit Log"]
+    Audit --> Agent
+```
 
-Input: detected field, section, and citation patterns.
+Important production rule: do not let the model directly execute MCP, web
+search, payment, email, or storage actions. The orchestrator must approve,
+execute, sanitize, and audit every tool call.
 
-Output: `LearnedTemplate`.
+For the detailed security model, see
+`docs/agent_security_sandboxing.md`.
 
-The template separates:
+## Prompt-Injection And Jailbreak Defense
 
-- fixed structure,
-- variable placeholders,
-- optional or low-confidence sections,
-- legal citations for human validation.
+Uploaded documents, pasted facts, retrieved source chunks, legal web pages, and
+MCP tool outputs are untrusted data. They must not be treated as instructions.
 
-### Document Generator Agent
+Production defenses:
 
-Input: learned template plus new case data.
+- label source text as untrusted evidence in prompts,
+- never place provider keys or secrets in prompts,
+- validate every LLM response against a schema,
+- block tool calls that do not pass backend policy,
+- filter retrieval by tenant, matter, role, country, and approved source,
+- audit allowed and denied tool calls,
+- quarantine suspicious outputs that attempt to bypass jurisdiction, RBAC, or
+  lawyer-review rules.
 
-Output: generated Markdown draft.
+## Failure Handling
 
-The prototype renders from learned representative sections. In production, this
-agent would use retrieval-grounded generation and constrained prompts that
-preserve locked clauses.
-
-### QA Agent
-
-Input: learned template and generated draft.
-
-Output: `QaReport` with score and findings.
-
-Checks include:
-
-- unresolved placeholders,
-- missing required sections,
-- missing expected legal citations,
-- unusually short output.
-
-Production checks would include citation validation, jurisdiction rules, clause
-diffing against approved language, PII policy checks, and lawyer approval state.
-
-### Orchestrator Agent
-
-Coordinates the full workflow:
-
-1. Parse all source documents.
-2. Detect patterns.
-3. Build template.
-4. Generate draft.
-5. Run QA.
-6. Persist artifacts.
-
-The orchestrator is also where production conflict handling belongs. For
-example, if the pattern detector marks a clause as optional but QA treats it as
-required, the orchestrator should escalate that template version to human review
-instead of silently choosing one agent.
-
-## Shared State
-
-The prototype passes typed Python objects between agents. A production version
-would persist agent outputs in a versioned template store:
-
-- source document IDs,
-- parser version,
-- extracted sections,
-- learned patterns,
-- prompt versions,
-- generated drafts,
-- QA results,
-- lawyer approvals and edits.
-
-This makes the system auditable and debuggable.
-
-## Conflict Handling
-
-Agents should not resolve legal-risk conflicts by majority vote. The workflow
-uses severity-aware rules:
-
-- high legal or completeness risk: block generation and request lawyer review,
-- medium risk: generate draft with warnings,
-- low risk: log and continue.
-
-Examples:
-
-- Pattern detector sees a clause in only 60% of examples, but QA says it is
-  legally required. Result: block or require lawyer approval.
-- Generator changes a locked legal clause. Result: fail QA.
-- Retrieved precedent conflicts with learned template language. Result: surface
-  both sources and ask for lawyer decision.
-
-## Failures and Resilience
-
-Expected failure modes:
-
-- unreadable files,
-- OCR/layout extraction errors,
-- documents from the wrong document family,
-- inconsistent source documents,
-- missing case data,
-- low-confidence generation,
-- LLM timeout or malformed structured output.
-
-Recovery strategy:
-
-- isolate failures per document,
-- keep partial extraction artifacts,
-- retry transient LLM/tool failures,
-- fall back to deterministic checks,
-- degrade to a review-only workflow when confidence is low.
+| Failure | Expected Handling |
+|---|---|
+| Missing required facts | Block generation or return required-fields response |
+| Unsupported document type | Classify as custom and ask for sample examples |
+| LLM malformed JSON | Retry, normalize conservative shapes, or fail safely |
+| Legal source from wrong country | Reject source and log audit event |
+| Junior requests unassigned matter | Return forbidden and audit |
+| Usage limit reached | Return upgrade/payment response |
+| Long OCR or drafting job | Queue background job and stream status |
+| Low QA or citation confidence | Route to lawyer review with warning |
 
 ## Observability
 
-Production observability should include:
+Every run should have:
 
-- trace ID per workflow run,
-- per-agent input/output summaries,
-- token cost and latency,
-- parser confidence,
-- template confidence,
-- QA score,
-- lawyer edit distance after review,
-- approval/rejection outcomes,
-- prompt and model versions.
+- run ID,
+- user ID and firm ID,
+- document type and jurisdiction,
+- prompt versions,
+- model/provider version,
+- retrieved source IDs,
+- legal source audit records,
+- execution log events,
+- QA score and findings,
+- revision decision,
+- export events,
+- feedback outcome,
+- latency, token use, and estimated cost.
 
-The key evaluation loop is: generate, review, measure lawyer edits, update
-patterns, and track whether QA catches the issues lawyers actually care about.
+## Production Deployment Shape
+
+```mermaid
+flowchart TB
+    Internet["Internet"] --> Nginx["Nginx / TLS"]
+    Nginx --> Frontend["Static React Build"]
+    Nginx --> API["FastAPI Containers"]
+    API --> Worker["Background Workers"]
+    API --> PG[("Managed PostgreSQL")]
+    API --> Redis[("Redis")]
+    API --> Obj[("S3 / MinIO")]
+    API --> Vector[("pgvector / Vector DB")]
+    API --> LLM["Ollama / vLLM / Hosted LLM"]
+    API --> SMTP["Email Provider"]
+    API --> Pay["Stripe / Paddle"]
+    API --> Logs["Sentry / OpenTelemetry / Metrics"]
+    Worker --> Obj
+    Worker --> Vector
+    Worker --> LLM
+```
+
+Start with this split:
+
+- one CPU server/container group for frontend and API,
+- managed PostgreSQL if possible,
+- Redis for queues and rate limits,
+- object storage for files and exports,
+- separate GPU server for Ollama or vLLM when local model inference is needed.

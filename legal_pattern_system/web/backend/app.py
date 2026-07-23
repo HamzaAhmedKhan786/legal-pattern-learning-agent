@@ -4,6 +4,7 @@ import json
 import os
 import time
 import sys
+import subprocess
 import tempfile
 import hashlib
 import html
@@ -57,6 +58,8 @@ from database import (
     usage_snapshot,
     write_audit_log,
 )
+from agent_security import assess_generation_payload, assess_llm_output, assess_text_security, evaluate_tool_policy
+from classifier_adapter import classifier_command_args
 from security import create_session_token, encrypt_secret, hash_password, hash_token, verify_password
 from email_service import send_email
 from official_sources import fetch_official_sources
@@ -182,6 +185,10 @@ class ExportDraftRequest(BaseModel):
 class ClassifyDocumentRequest(BaseModel):
     filename: str = "uploaded-document.txt"
     content: str
+
+
+class ClassifyDocumentsRequest(BaseModel):
+    documents: list[ClassifyDocumentRequest]
 
 
 class LearnedDraftRequest(BaseModel):
@@ -452,9 +459,18 @@ def agents_status() -> dict[str, Any]:
             {"name": "HumanReviewAgent", "phase": "observe", "llm_connected": False, "purpose": "Persist lawyer feedback and route history by account scope."},
             {"name": "BillingAgent", "phase": "act", "llm_connected": False, "purpose": "Enforce subscription and usage limits before generation."},
             {"name": "ToolPolicyAgent", "phase": "plan", "llm_connected": False, "purpose": "Approve or block MCP/tool calls before execution."},
+            {"name": "SecurityAgent", "phase": "analyze", "llm_connected": False, "purpose": "Detect prompt injection, jailbreak, toxicity, bias, and unsafe legal instructions before/after LLM calls."},
             {"name": "SupportAgent", "phase": "act", "llm_connected": False, "purpose": "Guide users and create support tickets for complaints."},
         ],
         "llm_providers": ["mock", "ollama", "openai-compatible"],
+        "orchestrators": [
+            {"name": "custom", "available": True, "purpose": "Default dependency-light assessment/MVP orchestrator."},
+            {"name": "langgraph", "available": _langgraph_available(), "purpose": "Optional production-style graph/state-machine orchestrator."},
+        ],
+        "classifier": {
+            "external_command_configured": bool(os.environ.get("DOCUMENT_CLASSIFIER_COMMAND", "")),
+            "adapter": "scripts/classify_with_docclassifier.py",
+        },
         "mvp_agent_recommendation": "No extra agent is required for the current MVP. Production can add CitationAgent, RedlineAgent, AssignmentAgent, and Billing/CostAgent.",
     }
 
@@ -515,6 +531,15 @@ async def rag_upload(
     text = content.decode("utf-8", errors="ignore")
     if not text.strip():
         raise HTTPException(status_code=400, detail="Only text-like files are supported by this production scaffold. Add PDF/DOCX/OCR workers next.")
+    security = assess_text_security(text, source=f"rag_upload:{file.filename or 'uploaded.txt'}")
+    if not security.allowed:
+        write_audit_log(
+            actor_email=user["email"],
+            action="security.rag_upload_blocked",
+            resource_type="document_asset",
+            metadata=security.to_dict(),
+        )
+        raise HTTPException(status_code=400, detail={"message": "Uploaded document was blocked by security guardrails.", "security": security.to_dict()})
     chunks = _chunk_text_for_rag(text)
     saved = save_document_chunks(
         firm_id=firm_id or user.get("firm_id") or "",
@@ -544,28 +569,24 @@ def mcp_tool_call(request: Request, tool_request: McpToolRequest) -> dict[str, A
     _require_database()
     user = _current_user(request)
     country = tool_request.country.upper()
-    decision = "allowed"
-    reason = "Tool call passed policy gate."
-    if "legal" in tool_request.tool_name.lower() or "search" in tool_request.tool_name.lower():
-        urls = [str(url) for url in tool_request.payload.get("source_urls", [])]
-        allowed_domains = OFFICIAL_LEGAL_SOURCES.get(country, [])
-        rejected = [
-            url
-            for url in urls
-            if not any(_host_from_url(url) == domain or _host_from_url(url).endswith(f".{domain}") for domain in allowed_domains)
-        ]
-        if rejected:
-            decision = "blocked"
-            reason = "Legal MCP calls may only use official-source allowlisted domains for the selected country."
+    security = evaluate_tool_policy(
+        tool_name=tool_request.tool_name,
+        payload=tool_request.payload,
+        country=country,
+        allowed_domains=OFFICIAL_LEGAL_SOURCES.get(country, []),
+        actor_role=user.get("role", ""),
+    )
+    decision = "allowed" if security.allowed else "blocked"
+    reason = "Tool call passed policy gate." if security.allowed else "Tool call blocked by security policy."
     audit = audit_mcp_tool(
         actor_email=user["email"],
         tool_name=tool_request.tool_name,
         policy_decision=decision,
         country=country,
         request_payload=tool_request.payload,
-        response_summary={"reason": reason},
+        response_summary={"reason": reason, "security": security.to_dict()},
     )
-    return {"decision": decision, "reason": reason, "audit": audit}
+    return {"decision": decision, "reason": reason, "security": security.to_dict(), "audit": audit}
 
 
 @app.post("/api/contact")
@@ -609,6 +630,31 @@ def classify_document(request: ClassifyDocumentRequest) -> dict[str, Any]:
         metadata={"filename": request.filename, **classification},
     )
     return classification
+
+
+@app.post("/api/classify-documents")
+def classify_documents(request: ClassifyDocumentsRequest) -> dict[str, Any]:
+    if len(request.documents) > 25:
+        raise HTTPException(status_code=400, detail="Classify up to 25 documents per request.")
+    results = [
+        {"index": index, **_classify_document_text(document.content, document.filename)}
+        for index, document in enumerate(request.documents)
+    ]
+    write_audit_log(
+        actor_email="",
+        action="document.classify_batch",
+        resource_type="document_classifier",
+        metadata={"count": len(results), "labels": [result.get("raw_label") or result.get("topic") for result in results]},
+    )
+    return {
+        "results": results,
+        "coverage": {
+            "platform_catalog_types": 73,
+            "external_classifier_labels": 17,
+            "direct_platform_mappings": 10,
+            "note": "The classifier is currently strongest as a broad intake/router. Exact classification for every catalog type requires more labeled examples.",
+        },
+    }
 
 
 @app.post("/api/learned-drafts")
@@ -772,6 +818,35 @@ def generate(request: Request, payload: GenerateRequest) -> dict[str, Any]:
             "case_fact_count": len(payload.case_data),
         },
     )
+    request_security = assess_generation_payload(
+        doc_type=payload.doc_type,
+        case_data=payload.case_data,
+        source_documents=payload.source_documents,
+    )
+    _record_execution_event(
+        execution_log,
+        agent="SecurityAgent",
+        phase="analyze",
+        status="completed" if request_security.allowed else "blocked",
+        message="Checked request, case facts, and uploaded source examples for prompt injection, jailbreak, toxicity, bias, and unsafe legal instructions.",
+        details=request_security.to_dict(),
+    )
+    if not request_security.allowed:
+        if is_database_enabled():
+            write_audit_log(
+                actor_email=payload.user_email,
+                action="security.generate_request_blocked",
+                resource_type="agent_run",
+                metadata=request_security.to_dict(),
+            )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Draft generation blocked by security guardrails.",
+                "execution_log": execution_log,
+                "security": request_security.to_dict(),
+            },
+        )
     user = _current_user_optional(request)
     if user and is_database_enabled():
         _record_execution_event(
@@ -908,6 +983,35 @@ def generate(request: Request, payload: GenerateRequest) -> dict[str, Any]:
         encoding="utf-8",
     )
     trace["draft_markdown"] = _read_text_if_exists(Path(report.trace_dir) / "09_draft_v2.md")
+    output_security = assess_llm_output(trace["draft_markdown"], source="generated_draft")
+    _record_execution_event(
+        execution_log,
+        agent="SecurityAgent",
+        phase="analyze",
+        status="completed" if output_security.allowed else "blocked",
+        message="Checked generated draft for jailbreak leakage, unsafe legal instructions, toxicity, and bias indicators.",
+        details=output_security.to_dict(),
+    )
+    if not output_security.allowed:
+        if is_database_enabled():
+            write_audit_log(
+                actor_email=payload.user_email,
+                action="security.generated_draft_blocked",
+                resource_type="agent_run",
+                resource_id=trace.get("run_id", ""),
+                metadata=output_security.to_dict(),
+            )
+        trace["draft_markdown"] = ""
+        trace["security"] = output_security.to_dict()
+        trace["execution_log"] = _normalize_execution_log(execution_log)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Generated draft blocked by security guardrails.",
+                "trace": trace,
+                "security": output_security.to_dict(),
+            },
+        )
     trace["human_review"] = _read_json_if_exists(Path(report.trace_dir) / "12_human_review_packet.json")
     legal_validation = _validate_generated_citations(
         draft_markdown=trace["draft_markdown"],
@@ -1225,6 +1329,14 @@ def _require_senior_firm_user(user: dict[str, Any]) -> None:
         raise HTTPException(status_code=403, detail="Only senior lawyers in firm accounts can manage invitations and assignments.")
 
 
+def _langgraph_available() -> bool:
+    try:
+        import langgraph  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def _public_user(user: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": user.get("id"),
@@ -1240,12 +1352,37 @@ def _public_user(user: dict[str, Any]) -> dict[str, Any]:
 def _classify_document_text(content: str, filename: str) -> dict[str, Any]:
     external_command = os.environ.get("DOCUMENT_CLASSIFIER_COMMAND", "")
     if external_command:
-        return {
-            "classifier": "external_adapter_configured",
-            "status": "ready_to_call_external_classifier",
-            "note": "Set DOCUMENT_CLASSIFIER_COMMAND to your pretrained classifier service/CLI. This scaffold keeps routing contract stable.",
-            **_heuristic_classification(content, filename),
-        }
+        security = assess_text_security(content, source=f"classifier_input:{filename}")
+        if not security.allowed:
+            return {
+                "classifier": "security_blocked",
+                "status": "blocked",
+                "filename": filename,
+                "security": security.to_dict(),
+                **_heuristic_classification(content, filename),
+            }
+        try:
+            completed = subprocess.run(
+                classifier_command_args(external_command),
+                input=json.dumps({"filename": filename, "content": content}, ensure_ascii=False),
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            if completed.returncode == 0:
+                parsed = json.loads(completed.stdout)
+                if parsed.get("status") == "classified":
+                    return parsed
+                return {"classifier": "external_adapter_error", "status": "fallback", "external_error": parsed, **_heuristic_classification(content, filename)}
+            return {
+                "classifier": "external_adapter_error",
+                "status": "fallback",
+                "stderr": completed.stderr[-1000:],
+                **_heuristic_classification(content, filename),
+            }
+        except Exception as exc:
+            return {"classifier": "external_adapter_error", "status": "fallback", "error": str(exc), **_heuristic_classification(content, filename)}
     return {"classifier": "heuristic_fallback", "status": "classified", **_heuristic_classification(content, filename)}
 
 

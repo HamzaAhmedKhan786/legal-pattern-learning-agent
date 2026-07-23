@@ -57,9 +57,10 @@ Safeguards:
 - QA gate before lawyer review,
 - audit log for every generated draft.
 
-For example, a California employment clause should require both a jurisdiction
-condition and an approved clause source. If those are missing, the system should
-ask for legal review rather than invent language.
+For example, a German employment-law clause should require both a Germany
+jurisdiction condition and an approved official or firm-approved source. If
+those are missing, the system should ask for legal review rather than invent
+language.
 
 Lawyers should approve initial templates, approve changes to locked clauses,
 resolve low-confidence cases, and provide feedback after reviewing drafts. Their
@@ -106,4 +107,3 @@ Graceful degradation means producing less automation when risk rises:
 Human-in-the-loop controls should include approval queues, inline comments,
 redline review, reason-coded rejections, and feedback capture for future
 template versions.
-

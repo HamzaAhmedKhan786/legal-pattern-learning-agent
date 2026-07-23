@@ -108,7 +108,29 @@ type SamplePack = {
   sourceDocuments?: SourceDocument[];
 };
 
-type Page = "workspace" | "login" | "signup" | "library" | "history" | "profile" | "settings" | "admin" | "contact" | "about" | "careers" | "privacy" | "terms" | "impressum" | "gdpr";
+type ClassificationResult = {
+  index?: number;
+  classifier?: string;
+  status: string;
+  filename?: string;
+  raw_label?: string;
+  practice_area?: string;
+  document_type?: string;
+  topic?: string;
+  pack_id?: string;
+  confidence?: number;
+  signals?: string[];
+  security?: unknown;
+};
+
+type ClassifierCoverage = {
+  platform_catalog_types: number;
+  external_classifier_labels: number;
+  direct_platform_mappings: number;
+  note: string;
+};
+
+type Page = "workspace" | "login" | "signup" | "library" | "classifier" | "history" | "profile" | "settings" | "admin" | "contact" | "about" | "careers" | "privacy" | "terms" | "impressum" | "gdpr";
 type ThemeMode = "system" | "light" | "dark";
 type AppLanguage = "DE" | "EN" | "ES" | "FR" | "IT";
 
@@ -124,6 +146,7 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   EN: {
     workspace: "Workspace",
     samples: "Samples",
+    classifier: "Classifier",
     history: "History",
     settings: "Settings",
     admin: "Admin",
@@ -162,6 +185,7 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   DE: {
     workspace: "Arbeitsbereich",
     samples: "Beispiele",
+    classifier: "Klassifizierer",
     history: "Verlauf",
     settings: "Einstellungen",
     admin: "Admin",
@@ -200,6 +224,7 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   ES: {
     workspace: "Espacio",
     samples: "Muestras",
+    classifier: "Clasificador",
     history: "Historial",
     settings: "Ajustes",
     admin: "Admin",
@@ -238,6 +263,7 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   FR: {
     workspace: "Espace",
     samples: "Exemples",
+    classifier: "Classificateur",
     history: "Historique",
     settings: "Reglages",
     admin: "Admin",
@@ -276,6 +302,7 @@ const uiCopy: Record<AppLanguage, Record<string, string>> = {
   IT: {
     workspace: "Workspace",
     samples: "Esempi",
+    classifier: "Classificatore",
     history: "Cronologia",
     settings: "Impostazioni",
     admin: "Admin",
@@ -622,6 +649,19 @@ const packTopicMap: Record<string, { area: string; topic: string }> = {
   "commercial-damages": { area: "Commercial / Corporate Law", topic: "Commercial Litigation" }
 };
 
+const classifierPlatformMappings = [
+  { label: "Kundigung", area: "Employment Law", topic: "Employer Notice of Termination" },
+  { label: "Klageschrift", area: "Civil Law", topic: "Claim for Damages" },
+  { label: "Schriftsatz", area: "Civil Law", topic: "Contract Breach Claim" },
+  { label: "Vertrag&Vereinbarung", area: "Commercial / Corporate Law", topic: "Service Agreement" },
+  { label: "Mahnung", area: "Civil Law", topic: "Demand Letter" },
+  { label: "Vergleich", area: "Employment Law", topic: "Settlement Agreement" },
+  { label: "Berufung", area: "Civil Law", topic: "Appeal" },
+  { label: "Lizenzierung", area: "Intellectual Property", topic: "Licensing Agreement" },
+  { label: "Steuererklärung", area: "Administrative Law", topic: "Tax Appeal" },
+  { label: "Rechnung", area: "Civil Law", topic: "Payment Claim" }
+];
+
 const defaultUser: UserAccount = {
   name: "Hamza Khan",
   email: "hamza@example.com",
@@ -643,6 +683,7 @@ const pagePaths: Record<Page, string> = {
   login: "/login",
   signup: "/signup",
   library: "/library",
+  classifier: "/classifier",
   history: "/history",
   profile: "/profile",
   settings: "/settings",
@@ -666,6 +707,9 @@ function pageFromPath(pathname: string): Page {
   }
   if (normalized === "/library") {
     return "library";
+  }
+  if (normalized === "/classifier" || normalized === "/document-classifier") {
+    return "classifier";
   }
   if (normalized === "/history") {
     return "history";
@@ -753,6 +797,9 @@ export default function App() {
   const [subscriptionStatus, setSubscriptionStatus] = useState("");
   const [subscriptionInfo, setSubscriptionInfo] = useState<{ plan: string; billing_cycle: string; monthly_limit: number; used_count: number; remaining: number } | null>(null);
   const [classifierStatus, setClassifierStatus] = useState("");
+  const [classifierDocuments, setClassifierDocuments] = useState<SourceDocument[]>([]);
+  const [classifierResults, setClassifierResults] = useState<ClassificationResult[]>([]);
+  const [classifierCoverage, setClassifierCoverage] = useState<ClassifierCoverage | null>(null);
   const [learningStatus, setLearningStatus] = useState("");
   const [learnedDrafts, setLearnedDrafts] = useState<SourceDocument[]>([]);
   const [adminStatus, setAdminStatus] = useState("");
@@ -884,6 +931,7 @@ export default function App() {
       login: "Login | Legal AI Pattern Drafting Studio",
       signup: "Signup | Legal AI Pattern Drafting Studio",
       library: "Sample Library | Legal AI Pattern Drafting Studio",
+      classifier: "Document Classifier | Legal AI Pattern Drafting Studio",
       history: "History | Legal AI Pattern Drafting Studio",
       profile: "Profile | Legal AI Pattern Drafting Studio",
       settings: "Settings | Legal AI Pattern Drafting Studio",
@@ -1112,6 +1160,90 @@ export default function App() {
     } catch (caught) {
       setClassifierStatus(caught instanceof Error ? caught.message : "Document classification failed.");
     }
+  }
+
+  async function loadClassifierFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    const loaded = await Promise.all(
+      files.map(async (file, index) => ({
+        id: Date.now() + index,
+        name: file.name,
+        content: await file.text()
+      }))
+    );
+    if (loaded.length) {
+      setClassifierDocuments(loaded);
+      setClassifierResults([]);
+      setClassifierCoverage(null);
+      setClassifierStatus(`${loaded.length} document${loaded.length === 1 ? "" : "s"} ready for classification.`);
+    }
+  }
+
+  function addClassifierTextSample() {
+    setClassifierDocuments((current) => [
+      ...current,
+      {
+        id: Date.now(),
+        name: `pasted_document_${current.length + 1}.txt`,
+        content: "Paste or type a legal document here before classification."
+      }
+    ]);
+  }
+
+  function updateClassifierDocument(id: number, patch: Partial<SourceDocument>) {
+    setClassifierDocuments((current) => current.map((doc) => (doc.id === id ? { ...doc, ...patch } : doc)));
+  }
+
+  async function classifyDocuments() {
+    const ready = classifierDocuments.filter((document) => document.content.trim());
+    if (!ready.length) {
+      setClassifierStatus("Upload or paste at least one document first.");
+      return;
+    }
+    setClassifierStatus("Classifying documents and preparing routing suggestions...");
+    try {
+      const response = await fetch("/api/classify-documents", {
+        method: "POST",
+        headers: apiHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          documents: ready.map((document) => ({ filename: document.name, content: document.content }))
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || "Document classification failed.");
+      }
+      setClassifierResults(body.results || []);
+      setClassifierCoverage(body.coverage || null);
+      setClassifierStatus(`Classified ${body.results?.length || 0} document${body.results?.length === 1 ? "" : "s"}.`);
+    } catch (caught) {
+      setClassifierStatus(caught instanceof Error ? caught.message : "Document classification failed.");
+    }
+  }
+
+  function routeClassificationToWorkspace(resultItem: ClassificationResult) {
+    const area = resultItem.practice_area || "Civil Law";
+    const topic = resultItem.topic || resultItem.document_type || "Custom legal document";
+    openCatalogTopic(area, normalizeClassifierTopic(area, topic));
+  }
+
+  function addClassificationAsWorkspaceSource(resultItem: ClassificationResult) {
+    const source = classifierDocuments[resultItem.index ?? 0];
+    if (!source) {
+      setClassifierStatus("Could not find the classified source document.");
+      return;
+    }
+    setMode("custom");
+    setSourceDocuments((current) => [
+      ...current,
+      {
+        ...source,
+        id: Date.now(),
+        name: `${source.name.replace(/\.[^.]+$/, "")}_classified_source.md`
+      }
+    ]);
+    routeClassificationToWorkspace(resultItem);
+    setClassifierStatus("Added classified document as a Workspace source example.");
   }
 
   async function saveLearnedDraft(title: string, content: string, learnMode: "add" | "update" = "add") {
@@ -1516,6 +1648,19 @@ export default function App() {
               navigateToPage("workspace");
             }}
             onUseTopic={openCatalogTopic}
+          />
+        ) : currentPage === "classifier" ? (
+          <DocumentClassifierPage
+            documents={classifierDocuments}
+            results={classifierResults}
+            coverage={classifierCoverage}
+            status={classifierStatus}
+            onLoadFiles={loadClassifierFiles}
+            onAddTextSample={addClassifierTextSample}
+            onUpdateDocument={updateClassifierDocument}
+            onClassify={classifyDocuments}
+            onRouteToWorkspace={routeClassificationToWorkspace}
+            onAddAsSource={addClassificationAsWorkspaceSource}
           />
         ) : currentPage === "history" ? (
           <HistoryPage records={historyRecords} status={historyStatus} onRefresh={loadHistory} />
@@ -1963,6 +2108,7 @@ function AppNavbar({
       <nav>
         <button className={currentPage === "workspace" ? "active" : ""} onClick={() => onNavigate("workspace")}>{copy.workspace}</button>
         <button className={currentPage === "library" ? "active" : ""} onClick={() => onNavigate("library")}>{copy.samples}</button>
+        <button className={currentPage === "classifier" ? "active" : ""} onClick={() => onNavigate("classifier")}>{copy.classifier}</button>
         <button className={currentPage === "history" ? "active" : ""} onClick={() => onNavigate("history")}>{copy.history}</button>
         <button className={currentPage === "settings" ? "active" : ""} onClick={() => onNavigate("settings")}>{copy.settings}</button>
         {user?.accountType === "firm" && <button className={currentPage === "admin" ? "active" : ""} onClick={() => onNavigate("admin")}>{copy.admin}</button>}
@@ -2284,6 +2430,139 @@ function topicFieldSummary(area: string, topic: string) {
     required: required.length ? required : ["Matter or case number", "Client / claimant", "Matter summary"],
     optional: optional.length ? optional : ["Supporting evidence", "Reviewer notes", "Requested relief"]
   };
+}
+
+function DocumentClassifierPage({
+  documents,
+  results,
+  coverage,
+  status,
+  onLoadFiles,
+  onAddTextSample,
+  onUpdateDocument,
+  onClassify,
+  onRouteToWorkspace,
+  onAddAsSource
+}: {
+  documents: SourceDocument[];
+  results: ClassificationResult[];
+  coverage: ClassifierCoverage | null;
+  status: string;
+  onLoadFiles: (event: ChangeEvent<HTMLInputElement>) => void;
+  onAddTextSample: () => void;
+  onUpdateDocument: (id: number, patch: Partial<SourceDocument>) => void;
+  onClassify: () => void;
+  onRouteToWorkspace: (result: ClassificationResult) => void;
+  onAddAsSource: (result: ClassificationResult) => void;
+}) {
+  const totalCatalogTypes = legalDocumentCatalog.reduce((total, group) => total + group.documents.length, 0);
+  const mappedTypes = classifierPlatformMappings.length;
+  const missingTypes = Math.max(0, totalCatalogTypes - mappedTypes);
+  return (
+    <section className="classifier-page">
+      <article className="library-hero">
+        <p className="eyebrow">Document classifier</p>
+        <h1>Identify uploaded legal documents, then route them into the drafting workspace.</h1>
+        <p>
+          Classification is an intake step. It does not draft the document. It decides which practice area and document
+          type the uploaded material belongs to, so the platform can select the right sample family, required fields,
+          retrieval scope, and template-learning path.
+        </p>
+        <div className="library-stats">
+          <Metric label="Platform catalog" value={`${totalCatalogTypes}+`} />
+          <Metric label="Mapped classifier types" value={`${mappedTypes}`} strong />
+          <Metric label="Granular types to expand" value={`${missingTypes}`} />
+        </div>
+      </article>
+
+      <section className="classifier-grid">
+        <article className="settings-card">
+          <div className="section-title">
+            <div>
+              <h2>Documents to classify</h2>
+              <p>Upload text-like files or paste extracted document text. PDF/DOCX extraction should be handled by the ingestion worker in production.</p>
+            </div>
+            <span>{documents.length} loaded</span>
+          </div>
+          <label className="upload-box">
+            <strong>Upload documents for classification</strong>
+            <input type="file" multiple onChange={onLoadFiles} />
+          </label>
+          <div className="button-row">
+            <button className="secondary" onClick={onAddTextSample}>Paste document text</button>
+            <button className="primary" onClick={onClassify}>Classify documents</button>
+          </div>
+          {status && <p className="status">{status}</p>}
+          <div className="classifier-doc-list">
+            {documents.map((document) => (
+              <article className="classifier-doc" key={document.id}>
+                <input value={document.name} onChange={(event) => onUpdateDocument(document.id, { name: event.target.value })} />
+                <textarea value={document.content} onChange={(event) => onUpdateDocument(document.id, { content: event.target.value })} />
+              </article>
+            ))}
+            {!documents.length && <p className="field-note">No classifier input loaded yet.</p>}
+          </div>
+        </article>
+
+        <article className="settings-card">
+          <div className="section-title">
+            <div>
+              <h2>How it links to the platform</h2>
+              <p>The classifier output becomes routing metadata for Workspace, Sample Library, RAG filters, and learned source grouping.</p>
+            </div>
+          </div>
+          <div className="classifier-flow">
+            {["Upload", "Security scan", "Classify", "User confirms", "Workspace route", "Drafting agents"].map((step) => (
+              <span key={step}>{step}</span>
+            ))}
+          </div>
+          <div className="coverage-list">
+            <strong>Current direct mappings</strong>
+            {classifierPlatformMappings.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <p>{item.area} / {item.topic}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="classifier-results">
+        <article className="settings-card">
+          <div className="section-title">
+            <div>
+              <h2>Classification results</h2>
+              <p>Use a result to preselect the Workspace route, or add the document as a source example for template learning.</p>
+            </div>
+            {coverage && <span>{coverage.direct_platform_mappings} mappings</span>}
+          </div>
+          {coverage && <p className="field-note">{coverage.note}</p>}
+          <div className="result-grid">
+            {results.map((result) => (
+              <article className="classification-card" key={`${result.index}-${result.filename}`}>
+                <span>{result.classifier || "classifier"}</span>
+                <h2>{result.topic || result.document_type || "Unknown document"}</h2>
+                <p>{result.practice_area || "Unmapped practice area"}</p>
+                <div className="classification-meta">
+                  <strong>{Math.round(Number(result.confidence || 0) * 100)}%</strong>
+                  <small>confidence</small>
+                  {result.raw_label && <small>raw label: {result.raw_label}</small>}
+                </div>
+                {result.status === "blocked" && <p className="error">Security guardrails blocked this document.</p>}
+                {result.signals?.length ? <p className="field-note">{result.signals.join(", ")}</p> : null}
+                <div className="button-row">
+                  <button className="secondary" onClick={() => onRouteToWorkspace(result)}>Open in Workspace</button>
+                  <button className="primary" onClick={() => onAddAsSource(result)}>Add as source</button>
+                </div>
+              </article>
+            ))}
+            {!results.length && <p className="field-note">Classification results will appear here.</p>}
+          </div>
+        </article>
+      </section>
+    </section>
+  );
 }
 
 function HistoryPage({
@@ -3195,4 +3474,17 @@ function stringRecord(value: unknown): Record<string, string> {
 
 function displayRole(role: UserAccount["role"]) {
   return role.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeClassifierTopic(area: string, topic: string) {
+  const group = legalDocumentCatalog.find((item) => item.area === area);
+  if (!group) {
+    return topic;
+  }
+  if (group.documents.includes(topic)) {
+    return topic;
+  }
+  const lowerTopic = topic.toLowerCase();
+  const match = group.documents.find((document) => lowerTopic.includes(document.toLowerCase()) || document.toLowerCase().includes(lowerTopic));
+  return match || group.documents[0];
 }

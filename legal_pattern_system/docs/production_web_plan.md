@@ -1,92 +1,119 @@
 # Production Web Application Plan
 
+This document describes the web application direction. The current app is still
+a prototype, but it now represents the main production screens and backend
+contracts.
+
 ## Recommended Stack
 
 Backend: **FastAPI**
 
-Reasoning:
+Why:
 
-- The existing prototype is Python-based.
-- FastAPI uses Python type hints and Pydantic-style validation.
-- It provides OpenAPI documentation, which is useful for frontend integration
-  and reviewer/debug workflows.
-- It fits asynchronous upload and long-running agent jobs.
+- Python-native and aligned with the existing pipeline.
+- Good request validation and OpenAPI support.
+- Works well for uploads, agent orchestration, background jobs, and provider
+  routing.
 
 Frontend: **React + TypeScript + Vite**
 
-Reasoning:
+Why:
 
-- React is a strong fit for review-heavy interfaces such as document viewers,
-  redlines, QA dashboards, and approval flows.
-- Vite is a modern lightweight build tool and supports React + TypeScript
-  templates.
-- TypeScript helps keep API contracts explicit.
+- Strong fit for document review, dashboards, forms, and dynamic agent status.
+- TypeScript helps keep frontend and backend contracts explicit.
+- Vite keeps local iteration fast.
 
-References:
+Database: **PostgreSQL**
 
-- FastAPI docs: https://fastapi.tiangolo.com/
-- Vite guide: https://vite.dev/guide/
-- React installation docs: https://react.dev/learn/installation
+Why:
+
+- Strong relational model for firms, users, matters, drafts, feedback, billing,
+  and audit logs.
+- Can later add `pgvector` for early vector retrieval.
+
+## Current Screens
+
+| Screen | Purpose |
+|---|---|
+| Workspace | Generate drafts from selected practice area, document type, facts, language, and provider |
+| Sample Library | Browse many legal document categories and route one to workspace |
+| History | View positive and negative feedback records |
+| Profile | Manage name, designation, email verification, and password reset |
+| Settings | Provider config, country policy, subscription-related settings |
+| Firm Admin | Invite users, assign matters, senior review workflow |
+| Contact | Contact form and AI chatbot support tickets |
+| Auth | Login and signup |
+| Legal Pages | Privacy, Terms, Impressum, GDPR |
 
 ## Production Workflow
 
-```text
-Lawyer uploads prior documents
-  -> ingestion service parses Markdown/PDF/DOCX/OCR
-  -> chunking + embeddings index source clauses
-  -> LLM pattern agent extracts fixed vs variable structure
-  -> lawyer approves learned template
-  -> new case intake form collects facts
-  -> retrieval agent fetches grounding chunks
-  -> drafting agent generates draft
-  -> QA critique agent reviews draft
-  -> revision agent produces v2
-  -> lawyer reviews redline and approves/rejects
-  -> feedback becomes evaluation data
+```mermaid
+flowchart TB
+    Login["Login / Signup"] --> Workspace["Workspace"]
+    Workspace --> Select["Select practice area and document type"]
+    Select --> Facts["Enter case facts and output language"]
+    Facts --> Generate["Generate draft"]
+    Generate --> Status["Live agent status"]
+    Status --> Draft["Draft viewer"]
+    Draft --> Export["DOCX / PDF / Markdown export"]
+    Draft --> Feedback["Positive / negative feedback"]
+    Feedback --> History["History and learning candidates"]
+    Draft --> Review["Senior lawyer review queue"]
 ```
 
-## Backend Services
+## Production Backend Services
 
-- upload service,
-- ingestion service,
-- retrieval/indexing service,
-- template service,
-- agent orchestration service,
-- LLM provider gateway,
-- QA/evaluation service,
-- human review service,
-- audit/trace service.
+- authentication and sessions,
+- firm RBAC and assignments,
+- provider vault,
+- subscription and usage limits,
+- document ingestion,
+- classifier routing,
+- RAG indexing and retrieval,
+- official-law validation,
+- draft orchestration,
+- export service,
+- feedback and learning records,
+- support ticket service,
+- audit logging.
 
-## Frontend Screens
+## Production Frontend Improvements
 
-- document upload,
-- source document list,
-- learned template review,
-- case-data intake,
-- generated draft viewer,
-- retrieved grounding panel,
-- QA findings panel,
-- redline comparison,
-- lawyer approval/feedback form,
-- run trace/debug view.
+- Server-sent events or WebSockets for true streaming agent progress.
+- Secure auth storage policy and refresh behavior.
+- Redline comparison for lawyer review.
+- Rich document preview for DOCX/PDF source files.
+- Grounding panel showing which clauses and legal sources were used.
+- Better admin dashboards for billing, usage, review queue, and audit logs.
+- Accessibility and mobile layout pass.
+- End-to-end tests for auth, generation, export, and feedback.
 
 ## Production Data Stores
 
-- relational database for cases, templates, approvals, users, and runs,
-- object storage for source docs and generated drafts,
-- vector database for clause retrieval,
-- append-only audit log for legal/compliance traceability.
+```mermaid
+flowchart LR
+    API["FastAPI"] --> PG[("PostgreSQL")]
+    API --> Obj[("Object Storage")]
+    API --> Vec[("Vector Store")]
+    API --> Redis[("Redis")]
+    PG --> Structured["Users, firms, matters, drafts, feedback, billing, audit"]
+    Obj --> Files["Uploads, OCR, exports, trace bundles"]
+    Vec --> Retrieval["Embeddings and source chunks"]
+    Redis --> Runtime["Rate limits, queues, job progress"]
+```
 
-## Still Missing Before Production
+## What Is Still External
 
-- real OCR and layout preservation,
-- robust LLM JSON schema validation and retries,
-- real embeddings provider/vector database,
-- authentication and role-based access,
-- tenant isolation,
-- PII detection/redaction,
-- lawyer-scored evaluation dataset,
-- redline/diff implementation,
-- cost/latency/token observability,
-- deployment and secrets management.
+The code has scaffolding for the production concerns, but these need real
+external services before launch:
 
+- SMTP provider,
+- Stripe or Paddle live integration,
+- Redis,
+- object storage,
+- MCP servers,
+- official-law search connector,
+- deployment infrastructure,
+- monitoring and backups.
+
+See `production_integration_guide.md` for the setup steps.

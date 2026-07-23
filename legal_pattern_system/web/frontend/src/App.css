@@ -43,6 +43,94 @@
   grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
 }
 
+.classifier-page {
+  display: grid;
+  gap: 16px;
+}
+
+.classifier-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(360px, 1.1fr) minmax(320px, 0.9fr);
+}
+
+.classifier-doc-list,
+.result-grid,
+.coverage-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.classifier-doc,
+.classification-card,
+.coverage-list > div {
+  background: color-mix(in srgb, var(--panel-strong) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.classifier-doc textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.classifier-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.classifier-flow span,
+.classification-card > span {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  padding: 7px 10px;
+}
+
+.coverage-list strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.coverage-list span,
+.classification-meta small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.coverage-list p,
+.classification-card p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.classification-card h2 {
+  margin: 0;
+}
+
+.classification-meta {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.classification-meta strong {
+  color: var(--accent);
+  font-size: 24px;
+}
+
 .chatbot-card {
   min-height: 520px;
 }

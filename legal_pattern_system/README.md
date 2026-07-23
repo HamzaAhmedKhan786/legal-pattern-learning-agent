@@ -1,28 +1,134 @@
-# Legal Pattern Learning Prototype
+# Legal AI Pattern Drafting Studio
 
-This is a proof-of-concept submission for the legal document pattern learning
-challenge. It is intentionally small, dependency-free, and easy to inspect. The
-main goal is to demonstrate the agentic architecture and the end-to-end workflow,
-not to build a production legal drafting system.
+Legal AI Pattern Drafting Studio is a prototype-to-production blueprint for an
+agentic legal drafting system. It learns reusable drafting patterns from a law
+firm's approved past documents, collects new case facts, retrieves grounding
+material, generates a new draft, validates the result, and routes it to lawyer
+review.
 
-## What This Solves
+The original assessment was a system design and architecture challenge. This
+project now includes both:
 
-The challenge asks for a system that can learn from multiple past legal
-documents, separate stable legal structure from variable case details, generate a
-new firm-specific draft, and validate the output before lawyer review.
+- a runnable Python agentic pipeline for the assessment,
+- a production-style FastAPI and React web application showing how the workflow
+  would look for lawyers, juniors, firm admins, and individual users.
 
-This prototype:
+## Current Status
 
-- parses the provided Markdown legal documents into normalized document objects,
-- compares multiple examples from the same document family,
-- learns stable sections, variable fields, legal citations, and repeated patterns,
-- builds a reusable JSON template,
-- can generate a new Markdown draft through a mock LLM, local Ollama model, or
-  OpenAI-compatible API,
-- validates structured LLM JSON, retries/normalizes common provider shape
-  issues, and runs QA over the generated draft,
-- documents the production architecture, tradeoffs, and answers to the three
-  additional challenge questions.
+Implemented locally:
+
+- Markdown sample ingestion from the provided challenge documents.
+- LLM-ready agent orchestration with mock, Ollama, and OpenAI-compatible modes.
+- Structured prompt files and JSON schema validation helpers.
+- Retrieval grounding over parsed source examples.
+- Draft generation, critique, revision, QA, lawyer-review checklist, and run
+  trace artifacts.
+- React web UI with workspace, sample library, document classifier, history,
+  profile, settings, admin, support, auth, legal pages, language selection,
+  feedback history, and export buttons.
+- FastAPI backend with PostgreSQL schema, auth endpoints, provider key vault
+  helpers, subscription usage scaffolding, support tickets, firm admin routes,
+  learned draft records, official-source validation gates, and MCP audit
+  scaffolding.
+- MVP security guardrails in code: agent capability map, generation pre-flight
+  prompt-injection scan, generated-draft safety scan, RAG upload scan, MCP tool
+  policy evaluator, official-source domain enforcement, and unit tests for the
+  highest-risk cases.
+- Production documentation for deployment, subscriptions, RAG, MCP, and model
+  strategy.
+
+Still external before real production:
+
+- SMTP credentials for verification and password reset emails.
+- Stripe or Paddle live checkout and webhook secrets.
+- Redis service for distributed rate limiting and background job state.
+- Real MCP servers connected behind the audit and policy layer.
+- Production hosting with Nginx/TLS, backups, monitoring, and worker queue.
+- Your pretrained document classifier connected through
+  `DOCUMENT_CLASSIFIER_COMMAND`.
+- Live official-law retrieval using only approved government/legal sources.
+- Stable production `APP_ENCRYPTION_KEY` stored in a secrets manager.
+- Full production safety platform: Langfuse tracing, DeepEval/Ragas evaluation
+  suites, larger red-team dataset, model-based toxicity/bias classifier, and
+  continuous safety regression tests.
+
+## High-Level Architecture
+
+```mermaid
+flowchart LR
+    User["Lawyer / Junior / Firm Admin"] --> UI["React Web App"]
+    UI --> API["FastAPI Backend"]
+
+    API --> Auth["Auth, RBAC, Sessions"]
+    API --> Billing["Subscription and Usage Gate"]
+    API --> Orchestrator["Agent Orchestrator"]
+    API --> Vault["Encrypted Provider Vault"]
+    API --> Export["DOCX / PDF / Markdown Export"]
+
+    Orchestrator --> Classifier["Document Classifier"]
+    Orchestrator --> Parser["Document Parser Agent"]
+    Orchestrator --> Pattern["Pattern Extraction Agent"]
+    Orchestrator --> RAG["Retrieval Agent"]
+    Orchestrator --> Draft["Drafting Agent"]
+    Orchestrator --> Law["Official Law Validation Agent"]
+    Orchestrator --> Critique["Critique Agent"]
+    Orchestrator --> Revise["Revision Agent"]
+    Orchestrator --> Review["Human Review Agent"]
+
+    Auth --> DB[("PostgreSQL")]
+    Billing --> DB
+    Orchestrator --> DB
+    Vault --> DB
+    RAG --> Vector[("Vector Store / pgvector")]
+    Parser --> ObjectStore[("Object Storage")]
+    Export --> ObjectStore
+    Law --> Official["Official Country Law Sources"]
+    Orchestrator --> LLM["Mock / Ollama / OpenAI-Compatible LLM"]
+    API --> Redis[("Redis")]
+    API --> MCP["Audited MCP Client Layer"]
+```
+
+## Application Flow
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant UI as React UI
+    participant API as FastAPI
+    participant GW as Request Gateway
+    participant AG as Agent Orchestrator
+    participant DB as PostgreSQL
+    participant LLM as LLM Provider
+    participant LAW as Official Law Gate
+
+    U->>UI: Select practice area, document type, language, facts
+    UI->>API: POST /generate with auth token
+    API->>DB: Validate session, role, usage limit
+    API->>GW: Normalize request metadata
+    GW->>AG: Start drafting run
+    AG->>AG: Plan workflow
+    AG->>AG: Parse source examples
+    AG->>AG: Learn template and variables
+    AG->>AG: Retrieve firm/source chunks
+    AG->>LLM: Generate grounded draft
+    AG->>LAW: Validate citations by country allowlist
+    AG->>LLM: Critique and revise when needed
+    AG->>DB: Save draft, trace, QA, feedback placeholders
+    AG->>API: Return draft, events, exports, review packet
+    API->>UI: Show process, then final output
+    U->>UI: Positive or negative feedback
+    UI->>API: Save feedback and history record
+```
+
+For the full diagrams, see:
+
+- [docs/README.md](docs/README.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/system_design.md](docs/system_design.md)
+- [docs/application_flow.md](docs/application_flow.md)
+- [docs/agent_security_sandboxing.md](docs/agent_security_sandboxing.md)
+- [docs/document_classifier_training_data.md](docs/document_classifier_training_data.md)
+- [docs/production_integration_guide.md](docs/production_integration_guide.md)
 
 ## App Screenshots
 
@@ -41,6 +147,10 @@ Live generation process:
 Sample library:
 
 ![Sample library](screenshots/library.png)
+
+Document classifier:
+
+![Document classifier](screenshots/classifier.png)
 
 History:
 
@@ -94,150 +204,56 @@ GDPR:
 
 ![GDPR](screenshots/gdpr.png)
 
-## Current Scope vs. Production
-
-Current prototype:
-
-- uses Markdown because the provided files are Markdown,
-- uses a deterministic mock LLM by default so behavior is reproducible,
-- can switch to real LLM execution with Ollama or an OpenAI-compatible API,
-- uses only the Python standard library for the core pipeline,
-- writes learned templates, generated drafts, QA reports, prompt manifests, and
-  agent traces to disk.
-
-Production version:
-
-- would add PDF/DOCX/OCR parser adapters,
-- would add retrieval over approved firm documents and legal knowledge,
-- would use LLMs through structured-output interfaces,
-- would include clause locking, redline comparison, template versioning, lawyer
-  approval workflows, and observability.
-
-## Frontend And Backend
-
-The original assessment can still be reviewed through the CLI scripts, because
-the brief mainly evaluates system design and agentic architecture. The project
-now also includes a product-style web app to demonstrate how the same workflow
-would look for a law firm.
-
-- Backend: FastAPI in `web/backend`.
-- Frontend: React/Vite in `web/frontend`.
-- Database: PostgreSQL schema in `web/backend/schema.sql`.
-- Auth: backend register/login/session endpoints with bearer tokens.
-- Profile/settings: DB-backed profile update, email verification request, and
-  password reset request endpoints.
-- Provider vault: encrypted provider API-key storage with metadata-only reads.
-- Subscription usage: server-side free/paid draft limit tracking before
-  generation.
-- RAG/MCP/support: upload/search scaffolding, audited MCP policy gate, contact
-  tickets, and AI chatbot support tickets.
-
-## Agents
-
-The system now has two runnable paths:
-
-- `scripts/run_pipeline.py`: deterministic baseline for reproducible template
-  learning, generation, and QA.
-- `scripts/run_agentic_pipeline.py`: LLM-style agent loop with planning,
-  retrieval grounding, structured prompts, drafting, critique, revision, schema
-  validation, and trace artifacts.
-
-The agentic path can use:
-
-- `mock`: deterministic LLM-shaped responses for easy reviewer execution,
-- `ollama`: local Llama through Ollama,
-- `openai-compatible`: hosted API provider with JSON response mode.
-
-- `DocumentParserAgent`: turns source files into normalized `LegalDocument`
-  objects.
-- `PatternDetectorAgent`: detects variable fields, required sections, repeated
-  language, and legal citations across multiple examples.
-- `TemplateBuilderAgent`: builds a reusable `LearnedTemplate`.
-- `DocumentGeneratorAgent`: creates a new draft from the learned template and
-  case data.
-- `QaAgent`: checks unresolved placeholders, missing required sections, missing
-  citations, and suspiciously short drafts.
-- `PlanningAgent`, `LLMPatternAgent`, `GroundedDraftingAgent`, `CritiqueAgent`,
-  and `RevisionAgent`: LLM-facing roles in the corrected agentic pipeline.
-- `LegalPatternOrchestrator`: coordinates the full workflow.
-
-## Dependencies
-
-The core CLI pipeline uses only the Python standard library.
-
-The project uses:
-
-- `argparse` for CLI arguments,
-- `dataclasses` for typed models,
-- `json` for output artifacts,
-- `pathlib` for filesystem paths,
-- `re` for Markdown/field/citation extraction,
-- `unittest` for tests.
-
-The web backend adds FastAPI, Pydantic, psycopg, cryptography, and optional Redis
-rate limiting. Production document ingestion would add PyMuPDF/pdfplumber,
-python-docx, OCR tooling, an embeddings/vector database layer, and an LLM client
-with schema validation.
-
-## What Is Dynamic?
-
-Dynamically handled:
-
-- number of Markdown files in a document family,
-- metadata fields found in source documents,
-- plaintiff/defendant fields found in source documents,
-- section headings and heading levels,
-- required vs. optional sections based on occurrence rate,
-- legal citations found in source text,
-- generated output paths by document type,
-- QA findings based on generated content.
-
-Hardcoded only for prototype/demo convenience:
-
-- the two sample document family names used by the challenge,
-- small sample case data inside `scripts/run_pipeline.py`,
-- QA thresholds such as required section occurrence rate and short-document word
-  count.
-
-Those hardcoded items are isolated and easy to replace with CLI JSON input,
-configuration, or a database in a production version.
-
-## Folder Structure
+## Repository Structure
 
 ```text
 legal_pattern_system/
   README.md
-  pyproject.toml
-  src/legal_pattern_system/
-    models.py
-    agents/
-      document_parser.py
-      pattern_detector.py
-      template_builder.py
-      document_generator.py
-      qa_agent.py
-      orchestrator.py
-    utils/
-      section_parser.py
-      text_cleaning.py
-  scripts/
-    run_pipeline.py
-    generate_sample.py
-    evaluate_outputs.py
+  RESULTS.md
   docs/
     architecture.md
+    system_design.md
+    application_flow.md
+    production_integration_guide.md
+    production_backend_rag_plan.md
+    production_deployment_subscription_mcp_solution.md
     design_decisions.md
     additional_questions.md
-    loom_script.md
+  prompts/
+    planning.md
+    pattern_extraction.md
+    grounded_generation.md
+    qa_critique.md
+    revision.md
+  scripts/
+    run_pipeline.py
+    run_agentic_pipeline.py
+    generate_sample.py
+    evaluate_outputs.py
+    build_sample_library.py
+    init_database.py
+  src/legal_pattern_system/
+    agents/
+    agentic_orchestrator.py
+    llm_client.py
+    retrieval.py
+    schema_validation.py
+  web/
+    backend/
+      app.py
+      database.py
+      schema.sql
+      security.py
+      official_sources.py
+    frontend/
+      src/App.tsx
+      src/App.css
+      public/flags/
   outputs/
-    templates/
-    generated_documents/
-    qa_reports/
-  tests/
-    test_parser.py
+  screenshots/
 ```
 
-## How To Run
+## Run The Assessment Pipeline
 
 Open a terminal in this folder:
 
@@ -245,27 +261,28 @@ Open a terminal in this folder:
 cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system
 ```
 
-Run the full pipeline for dismissal protection suits:
+Run the deterministic baseline:
 
 ```bash
 python scripts\run_pipeline.py --doc-type dismissal_protection_suits
-```
-
-Run the full pipeline for claims for damages:
-
-```bash
 python scripts\run_pipeline.py --doc-type claims_for_damages
 ```
 
-Run the corrected LLM-style agentic pipeline:
+Run the LLM-style agentic pipeline:
 
 ```bash
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits
 python scripts\run_agentic_pipeline.py --doc-type claims_for_damages
 ```
 
-By default this uses a deterministic mock LLM provider so the project runs
-without credentials. To use a local Llama model through Ollama:
+Run the optional LangGraph state-machine workflow:
+
+```bash
+pip install ".[langgraph]"
+python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --workflow langgraph
+```
+
+Run with local Ollama:
 
 ```bash
 ollama serve
@@ -273,59 +290,27 @@ ollama pull llama3.1
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm ollama --model llama3.1
 ```
 
-To use an API-key based OpenAI-compatible provider:
+Run with an OpenAI-compatible API:
 
 ```bash
 set OPENAI_API_KEY=your_key_here
 python scripts\run_agentic_pipeline.py --doc-type dismissal_protection_suits --llm openai-compatible --model gpt-4o-mini
 ```
 
-Optional environment variables:
+## Run The Web Application
 
-```text
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1
-LLM_TIMEOUT_SECONDS=360
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-```
-
-This agentic path adds the missing AI-engineering layer:
-
-- planning step,
-- prompt templates in `prompts/`,
-- retrieval grounding over parsed source sections,
-- structured LLM outputs via mock, Ollama/local-Llama, or OpenAI-compatible providers,
-- schema validation plus conservative normalization for common LLM JSON shape errors,
-- draft critique,
-- revision decision,
-- deterministic safety guardrail if an LLM revision makes no QA improvement,
-- run traces in `outputs/runs/`.
-
-Run tests:
-
-```bash
-python -m unittest discover -s tests
-```
-
-Compile-check the code:
-
-```bash
-python -m compileall src scripts tests
-```
-
-Run the web backend with PostgreSQL enabled:
+Backend:
 
 ```bash
 cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\web\backend
 pip install -r requirements-web.txt
 set DATABASE_URL=postgresql://postgres:your_password@localhost:5432/legal_pattern_system
-set APP_ENCRYPTION_KEY=generate_with_cryptography_fernet_generate_key
+set APP_ENCRYPTION_KEY=your_fernet_key
 python ..\..\scripts\init_database.py
 python -m uvicorn app:app --host 127.0.0.1 --port 8001
 ```
 
-Run the web frontend:
+Frontend:
 
 ```bash
 cd C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\web\frontend
@@ -333,92 +318,169 @@ npm install
 npm run dev
 ```
 
-The Vite dev server proxies API calls to `http://127.0.0.1:8001`.
+Open:
+
+```text
+http://127.0.0.1:5173
+```
+
+Classifier page:
+
+```text
+http://127.0.0.1:5173/classifier
+```
+
+The classifier page is an intake and routing tool. It identifies uploaded or
+pasted documents, shows the predicted practice area and document type, and lets
+the user either open that route in Workspace or add the classified document as a
+custom source example.
 
 ## Inputs
 
-The full pipeline reads source examples from:
+The assessment pipeline learns from the challenge samples:
 
 ```text
 ../sample_documents/dismissal_protection_suits/*.md
 ../sample_documents/claims_for_damages/*.md
 ```
 
-The demo case data is currently inside `scripts/run_pipeline.py` under
-`SAMPLE_CASES`.
+The web application can use:
 
-To generate from a saved template and your own case-data JSON:
+- built-in sample packs,
+- custom pasted source examples,
+- uploaded intake JSON or key-value facts,
+- future PDF/DOCX/OCR ingestion adapters,
+- future classifier output through `DOCUMENT_CLASSIFIER_COMMAND`.
 
-```bash
-python scripts\generate_sample.py --template outputs\templates\dismissal_protection_suits_template.json --case-data examples\dismissal_case_data.json --output outputs\generated_documents\my_generated.md
+To connect the separate local classifier project:
+
+```powershell
+$env:DOCUMENT_CLASSIFIER_COMMAND='python C:\Users\DELL\Documents\Tasks\JUPUS\ai-challenge\legal_pattern_system\scripts\classify_with_docclassifier.py --project-root C:\Users\DELL\Documents\Tasks\JUPUS\DocClassifier'
 ```
 
-Example case-data files are included:
+Safer production form:
 
-- `examples/dismissal_case_data.json`
-- `examples/damages_case_data.json`
-
-Example structure:
-
-```json
-{
-  "case_no": "DPS-2024-999",
-  "court": "Labor Court Berlin",
-  "date_filed": "June 20, 2024",
-  "plaintiff_name": "Example Employee",
-  "plaintiff_address": "Example Street 1, 10115 Berlin, Germany",
-  "defendant_company": "Example Employer GmbH",
-  "defendant_address": "Employer Avenue 10, 10117 Berlin, Germany"
-}
+```powershell
+$env:DOCUMENT_CLASSIFIER_COMMAND='["python","C:\\Users\\DELL\\Documents\\Tasks\\JUPUS\\ai-challenge\\legal_pattern_system\\scripts\\classify_with_docclassifier.py","--project-root","C:\\Users\\DELL\\Documents\\Tasks\\JUPUS\\DocClassifier"]'
 ```
+
+See [docs/document_classifier_training_data.md](docs/document_classifier_training_data.md).
+
+Classifier coverage today:
+
+- Platform catalog: 73+ target draft types.
+- Local classifier: 17 broad raw labels.
+- Direct platform mappings: about 10 useful routes.
+- Remaining work: collect labeled examples for the other granular platform
+  document types, especially exact litigation, employment, family, real estate,
+  criminal, administrative, GDPR, and finance draft categories.
 
 ## Outputs
 
-The pipeline writes:
+Pipeline outputs:
 
-- `outputs/templates/<doc_type>_template.json`
-- `outputs/generated_documents/<doc_type>_generated.md`
-- `outputs/qa_reports/<doc_type>_qa.json`
-- `outputs/runs/<doc_type>_<run_id>/`
+```text
+outputs/templates/<doc_type>_template.json
+outputs/generated_documents/<doc_type>_generated.md
+outputs/qa_reports/<doc_type>_qa.json
+outputs/runs/<doc_type>_<run_id>/
+```
+
+Web outputs:
+
+- generated draft text,
+- event timeline,
+- QA and legal validation results,
+- history records with positive or negative feedback,
+- Markdown, DOCX, and PDF export responses,
+- support tickets and admin workflow records.
+
+## Production Integration Checklist
+
+Use [docs/production_integration_guide.md](docs/production_integration_guide.md)
+as the step-by-step guide for:
+
+- SMTP credentials,
+- Stripe or Paddle,
+- Redis,
+- MCP servers,
+- production hosting,
+- pretrained classifier integration,
+- official-law retrieval,
+- stable encryption key storage.
+
+## Security And Safety Guardrails
+
+Implemented MVP controls:
+
+- `web/backend/agent_security.py` defines agent capabilities and blocked actions.
+- `/generate` scans case facts and uploaded source examples before any LLM call.
+- `/generate` scans the generated draft before returning it to the UI.
+- `/api/rag/upload` blocks uploaded text containing high-risk prompt-injection,
+  jailbreak, toxic, biased, or unsafe legal instructions.
+- `/api/mcp/tool-call` runs a deterministic policy check before allowing MCP-like
+  tool calls and blocks non-official legal/search sources.
+- `/api/legal-web-fetch` fetches only country allowlisted official sources.
+- Tests in `tests/test_agent_security.py` cover prompt injection, official-source
+  enforcement, unsafe output, agent permissions, and bias/toxicity patterns.
+
+Not yet implemented as real integrations:
+
+- LangChain,
+- LangGraph,
+- Langfuse,
+- DeepEval,
+- Ragas.
+
+Current choice: the app uses a small custom orchestrator because it is easier to
+inspect for an assessment and avoids framework complexity. For production, I
+would add:
+
+- **Langfuse** for prompt/run tracing, latency, token cost, prompt versions, and
+  model debugging.
+- **DeepEval** for red-team, toxicity, bias, faithfulness, and regression tests.
+- **Ragas** for RAG retrieval and grounding evaluation.
+- **LangGraph** if the workflow needs a formal state-machine agent graph with
+  retries, branches, and resumable execution. An optional LangGraph orchestrator
+  is now available through `--workflow langgraph`.
+- **LangChain** only for specific integrations where it removes real work,
+  rather than as a default dependency.
+
+## Test Commands
+
+```bash
+python -m unittest discover -s tests
+python -m py_compile web\backend\app.py web\backend\database.py web\backend\security.py
+cd web\frontend
+npm run build
+```
 
 ## Design Notes
 
-See:
+Core notes:
 
-- `docs/architecture.md`
-- `docs/design_decisions.md`
-- `docs/additional_questions.md`
-- `docs/loom_script.md`
-- `docs/qa_score_comparison.md`
-- `docs/v2_agentic_corrections.md`
-- `docs/production_web_plan.md`
-- `RESULTS.md`
+- [docs/architecture.md](docs/architecture.md)
+- [docs/system_design.md](docs/system_design.md)
+- [docs/application_flow.md](docs/application_flow.md)
+- [docs/design_decisions.md](docs/design_decisions.md)
+- [docs/additional_questions.md](docs/additional_questions.md)
+- [docs/qa_score_comparison.md](docs/qa_score_comparison.md)
+- [docs/v2_agentic_corrections.md](docs/v2_agentic_corrections.md)
+- [docs/production_backend_rag_plan.md](docs/production_backend_rag_plan.md)
+- [docs/production_deployment_subscription_mcp_solution.md](docs/production_deployment_subscription_mcp_solution.md)
 
-## Future Production Suggestions
+## Production Direction
 
-For production, I would keep this prototype's agent boundaries but replace the
-lightweight internals with more robust services and review workflows.
+The intended production posture is not "AI replaces lawyer." The system should
+act as a controlled drafting assistant:
 
-My next production improvements would be:
-
-- Add PDF, DOCX, and OCR ingestion adapters so the same downstream agents can
-  work with real law-firm documents, not only Markdown samples.
-- Add retrieval over approved firm templates, prior filings, and clause libraries
-  so generation is grounded in reviewed source material.
-- Introduce LLMs through structured-output contracts for semantic clause
-  classification, template-variable suggestions, and controlled draft
-  generation.
-- Add locked clauses and redline comparison so critical legal language cannot be
-  silently rewritten.
-- Add a lawyer approval workflow for templates, generated drafts, low-confidence
-  sections, and agent disagreements.
-- Track lawyer edits after review and use that feedback as an evaluation signal
-  for future template improvements.
-- Add jurisdiction-specific rule checks, citation validation, PII controls,
-  audit logs, and tenant isolation.
-- Add observability for latency, cost, parser confidence, template confidence,
-  QA findings, and post-review edit distance.
-
-My production direction would be to treat the AI as a drafting and pattern
-learning assistant, while keeping lawyers in control of legal judgment,
-template approval, and final filing decisions.
+- learn only from approved firm material,
+- retrieve only scoped firm/matter/legal sources,
+- validate citations against official country sources,
+- sandbox tools and enforce agent permissions outside the LLM,
+- defend against prompt injection and jailbreak attempts in uploaded or
+  retrieved documents,
+- preserve traceability for every agent decision,
+- allow senior lawyers to review junior work,
+- capture feedback and redlines as future evaluation data,
+- protect PII, tenant data, and provider secrets.
